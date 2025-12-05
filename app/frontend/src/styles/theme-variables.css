@@ -1,0 +1,156 @@
+:root,
+:root[data-theme="dark"] {
+  --brand-cyan: #00D4FF;
+  --brand-teal: #00B388;
+  --brand-neon: #6EE7B7;
+  --accent-yellow: #FFD166;
+  --danger-red: #FF5C5C;
+  --success-green: #24D39A;
+  --glass-bg: rgba(10, 12, 18, 0.55);
+  --glass-border: rgba(0, 212, 255, 0.18);
+  --card-radius: 16px;
+  --spacing-baseline: 24px;
+  --backdrop-blur: 8px;
+
+  --bg-primary: #0A0C12;
+  --bg-secondary: #12141A;
+  --text-primary: #FFFFFF;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-muted: rgba(255, 255, 255, 0.5);
+
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 350ms ease;
+
+  --font-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  --font-heading: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+
+  --fs-body: 16px;
+  --fs-h1: 32px;
+  --fs-h2: 24px;
+  --fs-h3: 20px;
+  --fs-small: 14px;
+  --fs-tiny: 12px;
+}
+
+:root[data-theme="light"] {
+  --brand-cyan: #00A3CC;
+  --brand-teal: #008F6F;
+  --brand-neon: #4CC99B;
+  --accent-yellow: #F5B800;
+  --danger-red: #E63946;
+  --success-green: #06D6A0;
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(0, 163, 204, 0.3);
+  --card-radius: 16px;
+  --spacing-baseline: 24px;
+  --backdrop-blur: 8px;
+
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F8F9FA;
+  --text-primary: #000000;
+  --text-secondary: rgba(0, 0, 0, 0.75);
+  --text-muted: rgba(0, 0, 0, 0.5);
+
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 350ms ease;
+
+  --font-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  --font-heading: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+
+  --fs-body: 16px;
+  --fs-h1: 32px;
+  --fs-h2: 24px;
+  --fs-h3: 20px;
+  --fs-small: 14px;
+  --fs-tiny: 12px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-base);
+  font-size: var(--fs-body);
+  line-height: 1.5;
+  overflow-x: hidden;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
+}
+
+h1 {
+  font-size: var(--fs-h1);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+h2 {
+  font-size: var(--fs-h2);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+h3 {
+  font-size: var(--fs-h3);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--card-radius);
+  backdrop-filter: blur(var(--backdrop-blur));
+  -webkit-backdrop-filter: blur(var(--backdrop-blur));
+  transition: all var(--transition-normal);
+}
+
+.glass-card:hover {
+  border-color: var(--brand-cyan);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+}
+
+:root[data-theme="light"] .glass-card:hover {
+  box-shadow: 0 0 20px rgba(0, 163, 204, 0.25);
+}
+
+.neon-border {
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.1);
+  transition: all var(--transition-normal);
+}
+
+.neon-border:hover {
+  border-color: var(--brand-cyan);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+}
+
+:root[data-theme="light"] .neon-border:hover {
+  box-shadow: 0 0 20px rgba(0, 163, 204, 0.35);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--brand-cyan);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--brand-teal);
+}
