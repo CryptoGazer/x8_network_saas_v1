@@ -10,6 +10,9 @@ import { CompanySetup } from './components/CompanySetup';
 import { KnowledgeBase } from './components/KnowledgeBase';
 import { IntegrationsTokens } from './components/IntegrationsTokens';
 import { SupportPanel } from './components/SupportPanel';
+import { AuthChoice } from './components/AuthChoice';
+import { Login } from './components/Login';
+import { Register } from './components/Register';
 import {
   RevenueChannelsChart,
   DialogsSentReceivedChart,
@@ -20,6 +23,7 @@ import {
   AvgResponseChart,
   ClientTypeBarChart
 } from './components/Charts';
+import { apiClient } from './lib/api';
 
 const demoCompanies: Company[] = [
   {
@@ -56,8 +60,11 @@ const demoCompanies: Company[] = [
   }
 ];
 
+type AuthScreen = 'choice' | 'login' | 'register';
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authScreen, setAuthScreen] = useState<AuthScreen>('choice');
   const [currentWindow, setCurrentWindow] = useState('WINDOW_0');
   const [timeRange, setTimeRange] = useState<TimeRange>('All');
   const [userName] = useState('User');
@@ -65,8 +72,8 @@ function App() {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
 
   useEffect(() => {
-    const authStatus = localStorage.getItem('isAuthenticated');
-    if (authStatus === 'true') {
+    const authStatus = apiClient.isAuthenticated();
+    if (authStatus) {
       setIsAuthenticated(true);
     } else {
       setIsAuthenticated(false);
@@ -76,16 +83,23 @@ function App() {
 
   const handleNavigate = (window: string) => {
     if (window === 'WINDOW_AUTH') {
-      localStorage.removeItem('isAuthenticated');
+      apiClient.clearTokens();
       setIsAuthenticated(false);
+      setAuthScreen('choice');
     }
     setCurrentWindow(window);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
+    apiClient.clearTokens();
     setIsAuthenticated(false);
+    setAuthScreen('choice');
     setCurrentWindow('WINDOW_AUTH');
+  };
+
+  const handleAuthSuccess = () => {
+    setIsAuthenticated(true);
+    setCurrentWindow('WINDOW_0');
   };
 
   const handleCompanyClick = (company: Company) => {
@@ -97,58 +111,34 @@ function App() {
   };
 
   if (!isAuthenticated || currentWindow === 'WINDOW_AUTH') {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg-primary)'
-      }}>
-        <div className="glass-card" style={{
-          padding: '48px',
-          maxWidth: '400px',
-          width: '90%',
-          textAlign: 'center'
-        }}>
-          <h1 style={{
-            fontSize: '32px',
-            fontWeight: 700,
-            marginBottom: '24px',
-            background: 'linear-gradient(135deg, var(--brand-cyan), var(--brand-teal))',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text'
-          }}>
-            x8work
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>
-            Please log in to continue
-          </p>
-          <button
-            onClick={() => {
-              localStorage.setItem('isAuthenticated', 'true');
-              setIsAuthenticated(true);
-              setCurrentWindow('WINDOW_0');
-            }}
-            className="glass-card"
-            style={{
-              width: '100%',
-              padding: '16px',
-              border: '1px solid var(--brand-cyan)',
-              borderRadius: '8px',
-              background: 'rgba(0, 212, 255, 0.15)',
-              color: 'var(--brand-cyan)',
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: '16px'
-            }}
-          >
-            Login (Demo)
-          </button>
-        </div>
-      </div>
-    );
+    if (authScreen === 'choice') {
+      return (
+        <AuthChoice
+          onChoose={(choice) => setAuthScreen(choice)}
+          language={language}
+        />
+      );
+    }
+
+    if (authScreen === 'login') {
+      return (
+        <Login
+          onSuccess={handleAuthSuccess}
+          onBack={() => setAuthScreen('choice')}
+          language={language}
+        />
+      );
+    }
+
+    if (authScreen === 'register') {
+      return (
+        <Register
+          onSuccess={handleAuthSuccess}
+          onBack={() => setAuthScreen('choice')}
+          language={language}
+        />
+      );
+    }
   }
 
   if (currentWindow === 'WINDOW_1') {

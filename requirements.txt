@@ -2,6 +2,7 @@ fastapi
 uvicorn[standard]
 
 sqlalchemy
+asyncpg
 psycopg2-binary
 alembic
 
@@ -10,6 +11,7 @@ passlib[bcrypt]
 python-multipart
 
 pydantic
+pydantic-settings
 python-dotenv
 
 jinja2
