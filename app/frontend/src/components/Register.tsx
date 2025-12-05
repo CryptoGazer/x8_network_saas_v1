@@ -73,6 +73,8 @@ export const Register: React.FC<RegisterProps> = ({ onSuccess, onBack, language 
     return true;
   };
 
+  // For public registration, always use CLIENT role
+  // For admin panel, show role selector
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -84,7 +86,10 @@ export const Register: React.FC<RegisterProps> = ({ onSuccess, onBack, language 
     setLoading(true);
 
     try {
-      const response = await apiClient.register(formData);
+      const response = await apiClient.register({
+        ...formData,
+        role: 'client'  // Always client for public registration
+      });
       apiClient.saveTokens(response);
       onSuccess();
     } catch (err) {

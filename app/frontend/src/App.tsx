@@ -13,6 +13,8 @@ import { SupportPanel } from './components/SupportPanel';
 import { AuthChoice } from './components/AuthChoice';
 import { Login } from './components/Login';
 import { Register } from './components/Register';
+import { ManagerDashboard } from './components/ManagerDashboard';
+import { AdminDashboard } from './components/AdminDashboard';
 import {
   RevenueChannelsChart,
   DialogsSentReceivedChart,
@@ -70,16 +72,34 @@ function App() {
   const [userName] = useState('User');
   const [language, setLanguage] = useState('EN');
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [user, setUser] = useState<any>(null);
+  const [isLoadingUser, setIsLoadingUser] = useState(false);
 
   useEffect(() => {
     const authStatus = apiClient.isAuthenticated();
     if (authStatus) {
       setIsAuthenticated(true);
+      loadUserData();
     } else {
       setIsAuthenticated(false);
       setCurrentWindow('WINDOW_AUTH');
     }
   }, []);
+
+  const loadUserData = async () => {
+    try {
+      setIsLoadingUser(true);
+      const userData = await apiClient.getCurrentUser();
+      setUser(userData);
+    } catch (error) {
+      console.error('Failed to load user:', error);
+      apiClient.clearTokens();
+      setIsAuthenticated(false);
+      setCurrentWindow('WINDOW_AUTH');
+    } finally {
+      setIsLoadingUser(false);
+    }
+  };
 
   const handleNavigate = (window: string) => {
     if (window === 'WINDOW_AUTH') {
@@ -97,9 +117,10 @@ function App() {
     setCurrentWindow('WINDOW_AUTH');
   };
 
-  const handleAuthSuccess = () => {
+  const handleAuthSuccess = async () => {
     setIsAuthenticated(true);
     setCurrentWindow('WINDOW_0');
+    await loadUserData();
   };
 
   const handleCompanyClick = (company: Company) => {
@@ -109,6 +130,49 @@ function App() {
   const handleClosePreview = () => {
     setSelectedCompany(null);
   };
+
+  // Show loading while fetching user data after authentication
+  if (isLoadingUser) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg-primary)',
+        color: 'var(--text-primary)'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '18px', fontWeight: 600 }}>Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Role-based routing for authenticated users with loaded user data
+  if (isAuthenticated && user) {
+    if (user.role === 'admin') {
+      return (
+        <AdminDashboard
+          language={language}
+          onLanguageChange={setLanguage}
+          onLogout={handleLogout}
+        />
+      );
+    }
+
+    if (user.role === 'manager') {
+      return (
+        <ManagerDashboard
+          language={language}
+          onLanguageChange={setLanguage}
+          onLogout={handleLogout}
+        />
+      );
+    }
+
+    // Client dashboard - continue to main dashboard below
+  }
 
   if (!isAuthenticated || currentWindow === 'WINDOW_AUTH') {
     if (authScreen === 'choice') {

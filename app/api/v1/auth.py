@@ -19,8 +19,12 @@ async def register(
         db=db,
         email=request.email,
         password=request.password,
-        full_name=request.full_name
+        full_name=request.full_name,
+        role=request.role,
+        manager_id=request.manager_id
     )
+
+    await db.commit()
 
     tokens = generate_tokens(user.id)
     return tokens
@@ -55,4 +59,4 @@ async def refresh_token(
 
 @router.get("/me", response_model=UserSchema)
 async def get_me(current_user: User = Depends(get_current_user)):
-    return current_user
+    return current_user  # Now includes role, subscription_tier, etc.

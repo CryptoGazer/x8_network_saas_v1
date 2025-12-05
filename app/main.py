@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1 import auth, users, subscriptions, companies
+from app.api.v1 import auth, users, subscriptions, companies, managers, admin
 from app.core.config import settings
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -21,6 +22,8 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(companies.router)
 app.include_router(subscriptions.router)
+app.include_router(managers.router)
+app.include_router(admin.router)
 
 
 @app.get("/")

@@ -1,4 +1,6 @@
 from pydantic import BaseModel, EmailStr
+from typing import Optional
+from app.models.user import UserRole
 
 
 class Token(BaseModel):
@@ -22,6 +24,8 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
     full_name: str
+    role: UserRole = UserRole.CLIENT
+    manager_id: Optional[int] = None
 
 
 class RefreshTokenRequest(BaseModel):

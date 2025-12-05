@@ -9,6 +9,8 @@ interface RegisterRequest {
   email: string;
   password: string;
   full_name: string;
+  role?: 'client' | 'manager' | 'admin';
+  manager_id?: number;
 }
 
 interface AuthResponse {
@@ -21,6 +23,9 @@ interface User {
   id: number;
   email: string;
   full_name: string | null;
+  role: 'client' | 'manager' | 'admin';
+  subscription_tier?: string;
+  trial_ends_at?: string;
   is_active: boolean;
   created_at: string;
 }
@@ -75,6 +80,27 @@ class ApiClient {
       throw new Error(error.detail || 'Failed to fetch user');
     }
 
+    return response.json();
+  }
+
+  async getMyClients(): Promise<User[]> {
+    const response = await fetch(`${API_BASE_URL}/managers/clients`, {
+      headers: this.getAuthHeaders()
+    });
+    return response.json();
+  }
+
+  async getAllManagers(): Promise<User[]> {
+    const response = await fetch(`${API_BASE_URL}/admin/managers`, {
+      headers: this.getAuthHeaders()
+    });
+    return response.json();
+  }
+
+  async getAllClients(): Promise<User[]> {
+    const response = await fetch(`${API_BASE_URL}/admin/clients`, {
+      headers: this.getAuthHeaders()
+    });
     return response.json();
   }
 
