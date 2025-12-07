@@ -28,5 +28,23 @@ class RegisterRequest(BaseModel):
     manager_id: Optional[int] = None
 
 
+class SendVerificationCodeRequest(BaseModel):
+    email: EmailStr
+
+
+class VerifyCodeRequest(BaseModel):
+    email: EmailStr
+    code: str
+
+
+class CompleteRegistrationRequest(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: str
+    code: str
+    role: UserRole = UserRole.CLIENT
+    manager_id: Optional[int] = None
+
+
 class RefreshTokenRequest(BaseModel):
     refresh_token: str

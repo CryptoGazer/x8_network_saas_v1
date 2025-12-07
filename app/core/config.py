@@ -23,6 +23,14 @@ class Settings(BaseSettings):
     STRIPE_SECRET_KEY: str = ""
     STRIPE_WEBHOOK_SECRET: str = ""
 
+    # Email/SMTP (for 2FA)
+    SMTP_HOST: str = "localhost"  # Default to localhost (dev mode)
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "noreply@x8work.com"
+    SMTP_USE_TLS: bool = True
+
     class Config:
         env_file = "app/.env"
         case_sensitive = True

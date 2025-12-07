@@ -13,6 +13,24 @@ interface RegisterRequest {
   manager_id?: number;
 }
 
+interface SendVerificationCodeRequest {
+  email: string;
+}
+
+interface VerifyCodeRequest {
+  email: string;
+  code: string;
+}
+
+interface CompleteRegistrationRequest {
+  email: string;
+  password: string;
+  full_name: string;
+  code: string;
+  role?: 'client' | 'manager' | 'admin';
+  manager_id?: number;
+}
+
 interface AuthResponse {
   access_token: string;
   refresh_token: string;
@@ -49,6 +67,51 @@ class ApiClient {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.detail || 'Login failed');
+    }
+
+    return response.json();
+  }
+
+  async sendVerificationCode(data: SendVerificationCodeRequest): Promise<{ message: string; email: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/send-verification-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to send verification code');
+    }
+
+    return response.json();
+  }
+
+  async verifyCode(data: VerifyCodeRequest): Promise<{ message: string; email: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/verify-code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Invalid or expired code');
+    }
+
+    return response.json();
+  }
+
+  async completeRegistration(data: CompleteRegistrationRequest): Promise<AuthResponse> {
+    const response = await fetch(`${API_BASE_URL}/auth/complete-registration`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Registration failed');
     }
 
     return response.json();

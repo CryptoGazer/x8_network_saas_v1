@@ -13,6 +13,7 @@ import { SupportPanel } from './components/SupportPanel';
 import { AuthChoice } from './components/AuthChoice';
 import { Login } from './components/Login';
 import { Register } from './components/Register';
+import { RegisterWith2FA } from './components/RegisterWith2FA';
 import { ManagerDashboard } from './components/ManagerDashboard';
 import { AdminDashboard } from './components/AdminDashboard';
 import {
@@ -196,7 +197,7 @@ function App() {
 
     if (authScreen === 'register') {
       return (
-        <Register
+        <RegisterWith2FA
           onSuccess={handleAuthSuccess}
           onBack={() => setAuthScreen('choice')}
           language={language}
