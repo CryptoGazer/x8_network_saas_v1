@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     # Application
     PROJECT_NAME: str = "x8-network"
     API_V1_PREFIX: str = "/api/v1"
-    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:5173"]
+    BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:5175"]
 
     # Stripe
     STRIPE_SECRET_KEY: str = ""
@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     FACEBOOK_CLIENT_SECRET: str = ""
 
     # OAuth Redirect URIs
-    FRONTEND_URL: str = "http://localhost:5173"
+    FRONTEND_URL: str = "http://localhost:5175"
     BACKEND_URL: str = "http://localhost:8000"
 
     class Config:
