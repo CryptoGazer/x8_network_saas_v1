@@ -310,7 +310,12 @@ export default function AuthPage() {
               {mode === 'signin' && (
                 <>
                   <button
-                    onClick={() => setMode('reset')}
+                    onClick={() => {
+                      setMode('reset');
+                      setError('');
+                      setSuccessMessage('');
+                      setResetStep('email');
+                    }}
                     type="button"
                     className="text-sm font-light opacity-60 hover:opacity-100 transition-opacity duration-300"
                   >
@@ -319,7 +324,11 @@ export default function AuthPage() {
                   <div className="flex items-center justify-center space-x-2">
                     <span className="text-sm font-light opacity-60">Don't have an account?</span>
                     <button
-                      onClick={() => setMode('signup')}
+                      onClick={() => {
+                        setMode('signup');
+                        setError('');
+                        setSuccessMessage('');
+                      }}
                       type="button"
                       className="text-sm font-light text-cyan-400 hover:text-cyan-300 transition-colors duration-300"
                     >
@@ -339,7 +348,11 @@ export default function AuthPage() {
                 <div className="flex items-center justify-center space-x-2">
                   <span className="text-sm font-light opacity-60">Already have an account?</span>
                   <button
-                    onClick={() => setMode('signin')}
+                    onClick={() => {
+                      setMode('signin');
+                      setError('');
+                      setSuccessMessage('');
+                    }}
                     type="button"
                     className="text-sm font-light text-cyan-400 hover:text-cyan-300 transition-colors duration-300"
                   >

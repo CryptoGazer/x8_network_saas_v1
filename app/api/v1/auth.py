@@ -9,7 +9,8 @@ from app.schemas.auth import (
     Token,
     SendVerificationCodeRequest,
     VerifyCodeRequest,
-    CompleteRegistrationRequest
+    CompleteRegistrationRequest,
+    ResetPasswordRequest
 )
 from app.schemas.user import User as UserSchema
 from app.services.auth import authenticate_user, create_user, generate_tokens, refresh_access_token
@@ -233,16 +234,14 @@ async def verify_reset_code(
 
 @router.post("/reset-password", response_model=Token, status_code=status.HTTP_200_OK)
 async def reset_password(
-    email: str,
-    code: str,
-    new_password: str,
+    request: ResetPasswordRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """
     Step 3 of password reset: Reset password with verified code.
     """
     # Check if email exists
-    result = await db.execute(select(User).where(User.email == email))
+    result = await db.execute(select(User).where(User.email == request.email))
     user = result.scalar_one_or_none()
 
     if not user:
@@ -251,17 +250,8 @@ async def reset_password(
             detail="Invalid email"
         )
 
-    # Verify code one more time
-    is_valid = await verify_code(db, email, code)
-
-    if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired reset code"
-        )
-
     # Update password
-    user.hashed_password = get_password_hash(new_password)
+    user.hashed_password = get_password_hash(request.new_password)
     await db.commit()
 
     # Generate new tokens and return

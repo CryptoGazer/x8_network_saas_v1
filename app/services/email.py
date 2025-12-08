@@ -58,7 +58,7 @@ async def verify_code(db: AsyncSession, email: str, code: str) -> bool:
     )
     verification = result.scalar_one_or_none()
 
-    if not verification or not verification.is_valid():
+    if (not verification) or (not verification.is_valid()):
         return False
 
     # Mark code as used
