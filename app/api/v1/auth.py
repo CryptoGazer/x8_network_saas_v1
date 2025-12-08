@@ -14,7 +14,15 @@ from app.schemas.auth import (
 )
 from app.schemas.user import User as UserSchema
 from app.services.auth import authenticate_user, create_user, generate_tokens, refresh_access_token
-from app.services.email import create_verification_code, verify_code, send_verification_email, send_password_reset_email
+from app.services.email import (
+    create_verification_code,
+    verify_code,
+    send_verification_email,
+    send_password_reset_email,
+    create_magic_link_token,
+    verify_magic_link_token,
+    send_magic_link_email
+)
 from app.core.deps import get_current_user
 from app.models.user import User
 from app.core.security import get_password_hash
@@ -255,5 +263,62 @@ async def reset_password(
     await db.commit()
 
     # Generate new tokens and return
+    tokens = generate_tokens(user.id)
+    return tokens
+
+
+@router.post("/request-magic-link", status_code=status.HTTP_200_OK)
+async def request_magic_link(
+    request: SendVerificationCodeRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Request a magic link to be sent to email for passwordless login.
+    """
+    # Check if email exists
+    result = await db.execute(select(User).where(User.email == request.email))
+    user = result.scalar_one_or_none()
+
+    # Always return success to prevent email enumeration attacks
+    # But only send email if user exists
+    if user:
+        # Generate and send magic link
+        token = await create_magic_link_token(db, request.email)
+        await send_magic_link_email(request.email, token)
+
+    return {
+        "message": "If the email exists, a magic link has been sent",
+        "email": request.email
+    }
+
+
+@router.post("/verify-magic-link", response_model=Token, status_code=status.HTTP_200_OK)
+async def verify_magic_link(
+    token: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Verify a magic link token and log the user in.
+    """
+    # Verify the token and get the email
+    email = await verify_magic_link_token(db, token)
+
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired magic link"
+        )
+
+    # Get the user
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User not found"
+        )
+
+    # Generate tokens
     tokens = generate_tokens(user.id)
     return tokens

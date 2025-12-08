@@ -7,8 +7,7 @@ from app.db.session import get_db
 from app.services.oauth import (
     oauth,
     handle_google_callback,
-    handle_facebook_callback,
-    handle_apple_callback
+    handle_facebook_callback
 )
 from app.schemas.auth import Token
 from app.core.config import settings
@@ -19,11 +18,6 @@ router = APIRouter(prefix="/api/v1/oauth", tags=["oauth"])
 class OAuthCallbackRequest(BaseModel):
     code: str
     state: Optional[str] = None
-
-
-class AppleCallbackRequest(BaseModel):
-    id_token: str
-    code: str
 
 
 # Google OAuth
@@ -155,42 +149,11 @@ async def facebook_callback_post(
         )
 
 
-# Apple OAuth
-@router.get("/apple/login")
-async def apple_login():
-    """Return Apple OAuth configuration for client-side flow"""
-    return {
-        "authorize_url": "https://appleid.apple.com/auth/authorize",
-        "client_id": settings.APPLE_CLIENT_ID,
-        "redirect_uri": f"{settings.FRONTEND_URL}/auth/callback",
-        "scope": "name email",
-        "response_type": "code id_token",
-        "response_mode": "form_post"
-    }
-
-
-@router.post("/apple/callback", response_model=Token)
-async def apple_callback_post(
-    request: AppleCallbackRequest,
-    db: AsyncSession = Depends(get_db)
-):
-    """Handle Apple OAuth callback with ID token"""
-    try:
-        # Handle the Apple callback and create/login user
-        return await handle_apple_callback(db, request.id_token)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Apple OAuth failed: {str(e)}"
-        )
-
-
 # OAuth URLs endpoint for frontend
 @router.get("/urls")
 async def get_oauth_urls():
     """Get OAuth URLs for all providers"""
     return {
         "google": f"{settings.BACKEND_URL}/api/v1/oauth/google/login",
-        "facebook": f"{settings.BACKEND_URL}/api/v1/oauth/facebook/login",
-        "apple": f"{settings.BACKEND_URL}/api/v1/oauth/apple/login"
+        "facebook": f"{settings.BACKEND_URL}/api/v1/oauth/facebook/login"
     }

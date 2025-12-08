@@ -38,12 +38,6 @@ oauth.register(
     client_kwargs={'scope': 'email public_profile'},
 )
 
-# Apple OAuth configuration (manual)
-APPLE_AUTHORIZE_URL = 'https://appleid.apple.com/auth/authorize'
-APPLE_TOKEN_URL = 'https://appleid.apple.com/auth/token'
-APPLE_JWKS_URL = 'https://appleid.apple.com/auth/keys'
-
-
 async def get_google_user_info(token: str) -> Dict[str, Any]:
     """Fetch user info from Google"""
     async with httpx.AsyncClient() as client:
@@ -67,27 +61,6 @@ async def get_facebook_user_info(token: str) -> Dict[str, Any]:
         )
         response.raise_for_status()
         return response.json()
-
-
-async def verify_apple_token(id_token: str) -> Dict[str, Any]:
-    """Verify Apple ID token"""
-    try:
-        # Fetch Apple's public keys
-        async with httpx.AsyncClient() as client:
-            response = await client.get(APPLE_JWKS_URL)
-            response.raise_for_status()
-            jwks = response.json()
-
-        # Decode and verify the token
-        claims = jwt.decode(id_token, jwks)
-        claims.validate()
-
-        return claims
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid Apple token: {str(e)}"
-        )
 
 
 async def get_or_create_oauth_user(
@@ -188,42 +161,4 @@ async def handle_facebook_callback(db: AsyncSession, token: Dict[str, Any]) -> D
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Facebook OAuth failed: {str(e)}"
-        )
-
-
-async def handle_apple_callback(db: AsyncSession, id_token: str) -> Dict[str, str]:
-    """Handle Apple OAuth callback"""
-    try:
-        # Verify and decode the Apple ID token
-        claims = await verify_apple_token(id_token)
-
-        email = claims.get('email')
-        if not email:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email not provided by Apple"
-            )
-
-        # Get or create user
-        user = await get_or_create_oauth_user(
-            db=db,
-            email=email,
-            full_name=claims.get('name', ''),
-            oauth_provider='apple',
-            oauth_id=claims['sub']
-        )
-
-        # Generate tokens
-        access_token = create_access_token(data={"sub": str(user.id)})
-        refresh_token = create_refresh_token(data={"sub": str(user.id)})
-
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer"
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Apple OAuth failed: {str(e)}"
         )

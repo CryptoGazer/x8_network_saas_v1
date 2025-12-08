@@ -36,10 +36,6 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = ""
     FACEBOOK_CLIENT_ID: str = ""
     FACEBOOK_CLIENT_SECRET: str = ""
-    APPLE_CLIENT_ID: str = ""
-    APPLE_TEAM_ID: str = ""
-    APPLE_KEY_ID: str = ""
-    APPLE_PRIVATE_KEY: str = ""
 
     # OAuth Redirect URIs
     FRONTEND_URL: str = "http://localhost:5173"

@@ -15,10 +15,12 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   register: (email: string, password: string, fullName: string) => Promise<boolean>;
   logout: () => void;
-  loginWithOAuth: (provider: 'google' | 'apple' | 'facebook') => void;
+  loginWithOAuth: (provider: 'google' | 'facebook') => void;
   requestPasswordReset: (email: string) => Promise<boolean>;
   verifyResetCode: (email: string, code: string) => Promise<boolean>;
   resetPassword: (email: string, code: string, newPassword: string) => Promise<boolean>;
+  requestMagicLink: (email: string) => Promise<boolean>;
+  verifyMagicLink: (token: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -79,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  const loginWithOAuth = (provider: 'google' | 'apple' | 'facebook') => {
+  const loginWithOAuth = (provider: 'google' | 'facebook') => {
     const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     window.location.href = `${backendUrl}/api/v1/oauth/${provider}/login`;
   };
@@ -117,8 +119,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const requestMagicLink = async (email: string): Promise<boolean> => {
+    try {
+      await apiClient.requestMagicLink(email);
+      return true;
+    } catch (error) {
+      console.error('Magic link request failed:', error);
+      return false;
+    }
+  };
+
+  const verifyMagicLink = async (token: string): Promise<boolean> => {
+    try {
+      await apiClient.verifyMagicLink(token);
+      const userData = await apiClient.getCurrentUser();
+      setUser(userData);
+      localStorage.setItem('isAuthenticated', 'true');
+      return true;
+    } catch (error) {
+      console.error('Magic link verification failed:', error);
+      return false;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, loginWithOAuth, requestPasswordReset, verifyResetCode, resetPassword }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, loginWithOAuth, requestPasswordReset, verifyResetCode, resetPassword, requestMagicLink, verifyMagicLink }}>
       {children}
     </AuthContext.Provider>
   );

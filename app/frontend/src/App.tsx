@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import AuthPage from './pages/AuthPage';
 import OAuthCallback from './pages/OAuthCallback';
+import MagicLinkCallback from './pages/MagicLinkCallback';
 import Dashboard from './Dashboard';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -23,6 +24,7 @@ function App() {
     <Routes>
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/auth/callback" element={<OAuthCallback />} />
+      <Route path="/auth/magic-link" element={<MagicLinkCallback />} />
       <Route
         path="/*"
         element={

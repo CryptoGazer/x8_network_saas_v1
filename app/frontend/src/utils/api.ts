@@ -178,6 +178,42 @@ class ApiClient {
     localStorage.setItem('refresh_token', data.refresh_token);
     return data;
   }
+
+  async requestMagicLink(email: string): Promise<{ message: string; email: string }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/auth/request-magic-link`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to send magic link');
+    }
+
+    return await response.json();
+  }
+
+  async verifyMagicLink(token: string): Promise<TokenResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/auth/verify-magic-link?token=${token}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Invalid or expired magic link');
+    }
+
+    const data: TokenResponse = await response.json();
+    localStorage.setItem('access_token', data.access_token);
+    localStorage.setItem('refresh_token', data.refresh_token);
+    return data;
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
