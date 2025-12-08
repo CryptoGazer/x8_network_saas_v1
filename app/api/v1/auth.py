@@ -158,3 +158,15 @@ async def refresh_token(
 @router.get("/me", response_model=UserSchema)
 async def get_me(current_user: User = Depends(get_current_user)):
     return current_user  # Now includes role, subscription_tier, etc.
+
+
+@router.post("/logout", status_code=status.HTTP_200_OK)
+async def logout(current_user: User = Depends(get_current_user)):
+    """
+    Logout endpoint. Since we use JWT tokens, the client should delete
+    the tokens from their storage. The tokens will expire naturally.
+    """
+    return {
+        "message": "Successfully logged out",
+        "detail": "Please remove tokens from client storage"
+    }

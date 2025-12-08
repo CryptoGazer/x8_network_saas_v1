@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1 import auth, users, subscriptions, companies, managers, admin
+from app.api.v1 import auth, users, subscriptions, companies, managers, admin, oauth
 from app.core.config import settings
 
 
@@ -19,6 +19,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(oauth.router)
 app.include_router(users.router)
 app.include_router(companies.router)
 app.include_router(subscriptions.router)

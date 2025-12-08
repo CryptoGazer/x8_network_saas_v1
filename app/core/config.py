@@ -31,6 +31,20 @@ class Settings(BaseSettings):
     SMTP_FROM_EMAIL: str = "noreply@x8work.com"
     SMTP_USE_TLS: bool = True
 
+    # OAuth Settings
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    FACEBOOK_CLIENT_ID: str = ""
+    FACEBOOK_CLIENT_SECRET: str = ""
+    APPLE_CLIENT_ID: str = ""
+    APPLE_TEAM_ID: str = ""
+    APPLE_KEY_ID: str = ""
+    APPLE_PRIVATE_KEY: str = ""
+
+    # OAuth Redirect URIs
+    FRONTEND_URL: str = "http://localhost:5173"
+    BACKEND_URL: str = "http://localhost:8000"
+
     class Config:
         env_file = "app/.env"
         case_sensitive = True
