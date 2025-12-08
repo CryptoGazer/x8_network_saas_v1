@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { AuthPage } from './components/AuthPage';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { BottomNav } from './components/BottomNav';
@@ -29,6 +30,7 @@ import {
   AvgResponseChart,
   ClientTypeBarChart
 } from './components/Charts';
+import { apiClient } from './utils/api';
 
 const demoCompanies: Company[] = [
   {
@@ -94,9 +96,14 @@ function App() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
+    apiClient.logout();
     setIsAuthenticated(false);
     setCurrentWindow('WINDOW_AUTH');
+  };
+
+  const handleAuthSuccess = () => {
+    setIsAuthenticated(true);
+    setCurrentWindow('WINDOW_0');
   };
 
   const handleCompanyClick = (company: Company) => {
@@ -108,58 +115,7 @@ function App() {
   };
 
   if (!isAuthenticated || currentWindow === 'WINDOW_AUTH') {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg-primary)'
-      }}>
-        <div className="glass-card" style={{
-          padding: '48px',
-          maxWidth: '400px',
-          width: '90%',
-          textAlign: 'center'
-        }}>
-          <h1 style={{
-            fontSize: '32px',
-            fontWeight: 700,
-            marginBottom: '24px',
-            background: 'linear-gradient(135deg, var(--brand-cyan), var(--brand-teal))',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text'
-          }}>
-            x8work
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>
-            Please log in to continue
-          </p>
-          <button
-            onClick={() => {
-              localStorage.setItem('isAuthenticated', 'true');
-              setIsAuthenticated(true);
-              setCurrentWindow('WINDOW_0');
-            }}
-            className="glass-card"
-            style={{
-              width: '100%',
-              padding: '16px',
-              border: '1px solid var(--brand-cyan)',
-              borderRadius: '8px',
-              background: 'rgba(0, 212, 255, 0.15)',
-              color: 'var(--brand-cyan)',
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: '16px'
-            }}
-          >
-            Login (Demo)
-          </button>
-        </div>
-      </div>
-    );
+    return <AuthPage onAuthSuccess={handleAuthSuccess} />;
   }
 
   if (currentWindow === 'WINDOW_1') {
@@ -668,6 +624,8 @@ function App() {
         title={getWindowTitle(currentWindow, language)}
         onMenuClick={() => setIsMobileSidebarOpen(true)}
         onUserClick={() => handleNavigate('WINDOW_12')}
+        language={language}
+        onLanguageChange={setLanguage}
       />
       <BottomNav currentWindow={currentWindow} onNavigate={handleNavigate} language={language} />
       <CompanyPreview company={selectedCompany} onClose={handleClosePreview} language={language} />
