@@ -171,27 +171,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, onLogout, language, 
                 onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 212, 255, 0.1)'}
                 onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
               >
-                Profile
-              </button>
-              <button
-                onClick={() => {
-                  setShowProfileMenu(false);
-                  onNavigate('WINDOW_12');
-                }}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-primary)',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  transition: 'background var(--transition-fast)'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 212, 255, 0.1)'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-              >
-                Settings
+                Account Settings
               </button>
               <button
                 onClick={handleLogout}

@@ -543,7 +543,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
 
       <div className="glass-card" style={{ padding: '20px', marginBottom: '24px', borderRadius: '16px' }}>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div>
+          <div style={{ flex: '1 1 200px', minWidth: '200px' }}>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '8px' }}>
               {language === 'EN' ? 'KB Type' : 'Tipo de KB'}
             </label>
@@ -583,7 +583,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
             </div>
           </div>
 
-          <div style={{ flex: '1 1 200px' }}>
+          <div style={{ flex: '1 1 200px', minWidth: '200px' }}>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '8px' }}>
               {language === 'EN' ? 'Company' : 'Empresa'}
             </label>
@@ -609,7 +609,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
             </select>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+          <div id="kb-actions-wrapper" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', flex: '1 1 100%', width: '100%' }}>
             <button
               id="kb.importCsv"
               onClick={handleImportCSV}
@@ -624,7 +624,10 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
                 color: 'var(--text-primary)',
                 fontSize: '13px',
                 fontWeight: 500,
-                cursor: 'pointer'
+                cursor: 'pointer',
+                flex: '1 1 auto',
+                minWidth: '140px',
+                justifyContent: 'center'
               }}
             >
               <Upload size={16} />
@@ -645,7 +648,10 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
                 color: 'var(--text-primary)',
                 fontSize: '13px',
                 fontWeight: 500,
-                cursor: 'pointer'
+                cursor: 'pointer',
+                flex: '1 1 auto',
+                minWidth: '140px',
+                justifyContent: 'center'
               }}
             >
               <Download size={16} />
@@ -666,11 +672,15 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
                 color: 'var(--text-primary)',
                 fontSize: '13px',
                 fontWeight: 500,
-                cursor: 'pointer'
+                cursor: 'pointer',
+                flex: '1 1 auto',
+                minWidth: '140px',
+                justifyContent: 'center'
               }}
             >
               <ImageIcon size={16} />
-              {language === 'EN' ? 'Bulk Media Upload' : 'Carga Masiva'}
+              <span className="desktop-only">{language === 'EN' ? 'Bulk Media Upload' : 'Carga Masiva'}</span>
+              <span className="mobile-only">{language === 'EN' ? 'Media' : 'Medios'}</span>
             </button>
 
             <button
@@ -687,7 +697,10 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
                 color: '#FFFFFF',
                 fontSize: '13px',
                 fontWeight: 600,
-                cursor: 'pointer'
+                cursor: 'pointer',
+                flex: '1 1 auto',
+                minWidth: '140px',
+                justifyContent: 'center'
               }}
             >
               <Check size={16} />

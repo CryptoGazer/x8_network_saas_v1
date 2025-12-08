@@ -8,7 +8,8 @@ import {
   MessageSquare,
   Activity,
   GraduationCap,
-  LifeBuoy
+  LifeBuoy,
+  Calendar
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -29,11 +30,12 @@ const menuItems: MenuItem[] = [
   { id: 'company-setup', label: { en: 'Company Setup', es: 'Configuración de Empresa' }, icon: <Building2 size={20} />, window: 'WINDOW_2' },
   { id: 'knowledge-base', label: { en: 'Knowledge Base', es: 'Base de Conocimientos' }, icon: <BookOpen size={20} />, window: 'WINDOW_3' },
   { id: 'integrations', label: { en: 'Integrations & Tokens', es: 'Integraciones y Tokens' }, icon: <Plug size={20} />, window: 'WINDOW_5' },
-  { id: 'analytics', label: { en: 'Analytics Dashboard', es: 'Panel de Análisis' }, icon: <BarChart3 size={20} />, window: 'WINDOW_4' },
   { id: 'conversation', label: { en: 'Conversation Center', es: 'Centro de Conversaciones' }, icon: <MessageSquare size={20} />, window: 'WINDOW_7' },
-  { id: 'support', label: { en: 'Support Panel', es: 'Panel de Soporte' }, icon: <LifeBuoy size={20} />, window: 'WINDOW_9' },
+  { id: 'order-calendar', label: { en: 'Order Calendar', es: 'Calendario de Órdenes' }, icon: <Calendar size={20} />, window: 'WINDOW_13' },
+  { id: 'analytics', label: { en: 'Analytics Dashboard', es: 'Panel de Análisis' }, icon: <BarChart3 size={20} />, window: 'WINDOW_4' },
   { id: 'activity-logs', label: { en: 'Activity Logs', es: 'Registros de Actividad' }, icon: <Activity size={20} />, window: 'WINDOW_10' },
-  { id: 'training', label: { en: 'Training Studio', es: 'Estudio de Entrenamiento' }, icon: <GraduationCap size={20} />, window: 'WINDOW_11' }
+  { id: 'training', label: { en: 'Training Studio', es: 'Estudio de Entrenamiento' }, icon: <GraduationCap size={20} />, window: 'WINDOW_11' },
+  { id: 'support', label: { en: 'Support Panel', es: 'Panel de Soporte' }, icon: <LifeBuoy size={20} />, window: 'WINDOW_9' }
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentWindow, language }) => {
@@ -42,7 +44,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentWindow, lan
   return (
     <aside
       id="sidebar"
-      className="glass-card neon-border"
+      className="glass-card neon-border desktop-only desktop-sidebar"
       style={{
         position: 'fixed',
         top: '80px',

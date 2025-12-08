@@ -1,8 +1,24 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Chart from 'react-apexcharts';
 import { ApexOptions } from 'apexcharts';
+import { getChartTextColor, getChartAxisColor, getChartGridColor, getChartThemeMode, getChartTooltipTheme, observeThemeChanges } from '../utils/themeChartHelper';
 
 export const RevenueChannelsChart: React.FC = () => {
+  const [chartKey, setChartKey] = useState(0);
+
+  useEffect(() => {
+    const cleanup = observeThemeChanges(() => {
+      setChartKey(prev => prev + 1);
+    });
+    return cleanup;
+  }, []);
+
+  const textColor = getChartTextColor();
+  const axisColor = getChartAxisColor();
+  const gridColor = getChartGridColor();
+  const themeMode = getChartThemeMode();
+  const tooltipTheme = getChartTooltipTheme();
+
   const options: ApexOptions = {
     chart: {
       type: 'area',
@@ -10,7 +26,7 @@ export const RevenueChannelsChart: React.FC = () => {
       toolbar: { show: false },
       fontFamily: 'inherit'
     },
-    theme: { mode: 'dark' },
+    theme: { mode: themeMode },
     stroke: {
       curve: 'smooth',
       width: [2, 3]
@@ -26,29 +42,29 @@ export const RevenueChannelsChart: React.FC = () => {
     },
     xaxis: {
       categories: ['Jan', 'Feb', 'Mar', 'Apr'],
-      labels: { style: { colors: 'rgba(255,255,255,0.7)' } }
+      labels: { style: { colors: axisColor } }
     },
     yaxis: [
       {
-        title: { text: 'EUR', style: { color: 'rgba(255,255,255,0.7)' } },
-        labels: { style: { colors: 'rgba(255,255,255,0.7)' } }
+        title: { text: 'EUR', style: { color: axisColor } },
+        labels: { style: { colors: axisColor } }
       },
       {
         opposite: true,
-        title: { text: 'Channels', style: { color: 'rgba(255,255,255,0.7)' } },
-        labels: { style: { colors: 'rgba(255,255,255,0.7)' } }
+        title: { text: 'Channels', style: { color: axisColor } },
+        labels: { style: { colors: axisColor } }
       }
     ],
     dataLabels: { enabled: false },
     legend: {
-      labels: { colors: 'rgba(255,255,255,0.7)' }
+      labels: { colors: textColor }
     },
     tooltip: {
       shared: true,
-      theme: 'dark'
+      theme: tooltipTheme
     },
     grid: {
-      borderColor: 'rgba(255,255,255,0.1)'
+      borderColor: gridColor
     }
   };
 
@@ -62,12 +78,27 @@ export const RevenueChannelsChart: React.FC = () => {
       <h3 style={{ marginBottom: '16px', color: 'var(--text-primary)', fontSize: '16px', fontWeight: 600 }}>
         Revenue & Channels
       </h3>
-      <Chart options={options} series={series} type="area" height={300} />
+      <Chart key={chartKey} options={options} series={series} type="area" height={300} />
     </div>
   );
 };
 
 export const DialogsSentReceivedChart: React.FC = () => {
+  const [chartKey, setChartKey] = useState(0);
+
+  useEffect(() => {
+    const cleanup = observeThemeChanges(() => {
+      setChartKey(prev => prev + 1);
+    });
+    return cleanup;
+  }, []);
+
+  const textColor = getChartTextColor();
+  const axisColor = getChartAxisColor();
+  const gridColor = getChartGridColor();
+  const themeMode = getChartThemeMode();
+  const tooltipTheme = getChartTooltipTheme();
+
   const options: ApexOptions = {
     chart: {
       type: 'area',
@@ -75,7 +106,7 @@ export const DialogsSentReceivedChart: React.FC = () => {
       toolbar: { show: false },
       fontFamily: 'inherit'
     },
-    theme: { mode: 'dark' },
+    theme: { mode: themeMode },
     stroke: {
       curve: 'smooth',
       width: [2, 3]
@@ -91,21 +122,21 @@ export const DialogsSentReceivedChart: React.FC = () => {
     },
     xaxis: {
       categories: ['Jan', 'Feb', 'Mar', 'Apr'],
-      labels: { style: { colors: 'rgba(255,255,255,0.7)' } }
+      labels: { style: { colors: axisColor } }
     },
     yaxis: {
-      labels: { style: { colors: 'rgba(255,255,255,0.7)' } }
+      labels: { style: { colors: axisColor } }
     },
     dataLabels: { enabled: false },
     legend: {
-      labels: { colors: 'rgba(255,255,255,0.7)' }
+      labels: { colors: textColor }
     },
     tooltip: {
       shared: true,
-      theme: 'dark'
+      theme: tooltipTheme
     },
     grid: {
-      borderColor: 'rgba(255,255,255,0.1)'
+      borderColor: gridColor
     }
   };
 
@@ -119,12 +150,27 @@ export const DialogsSentReceivedChart: React.FC = () => {
       <h3 style={{ marginBottom: '16px', color: 'var(--text-primary)', fontSize: '16px', fontWeight: 600 }}>
         Dialogs Sent & Received
       </h3>
-      <Chart options={options} series={series} type="area" height={300} />
+      <Chart key={chartKey} options={options} series={series} type="area" height={300} />
     </div>
   );
 };
 
 export const ByChannelChart: React.FC = () => {
+  const [chartKey, setChartKey] = useState(0);
+
+  useEffect(() => {
+    const cleanup = observeThemeChanges(() => {
+      setChartKey(prev => prev + 1);
+    });
+    return cleanup;
+  }, []);
+
+  const textColor = getChartTextColor();
+  const axisColor = getChartAxisColor();
+  const gridColor = getChartGridColor();
+  const themeMode = getChartThemeMode();
+  const tooltipTheme = getChartTooltipTheme();
+
   const total = 1780;
   const whatsapp = Math.round(total * 0.57);
   const instagram = Math.round(total * 0.25);
@@ -137,11 +183,11 @@ export const ByChannelChart: React.FC = () => {
       background: 'transparent',
       fontFamily: 'inherit'
     },
-    theme: { mode: 'dark' },
+    theme: { mode: themeMode },
     labels: ['WhatsApp', 'Instagram', 'Gmail', 'Others'],
     colors: ['#00D4FF', '#00B388', '#FFD166', '#888888'],
     legend: {
-      labels: { colors: 'rgba(255,255,255,0.7)' },
+      labels: { colors: textColor },
       position: 'bottom',
       formatter: function(seriesName, opts) {
         const val = opts.w.globals.series[opts.seriesIndex];
@@ -157,7 +203,7 @@ export const ByChannelChart: React.FC = () => {
       }
     },
     tooltip: {
-      theme: 'dark',
+      theme: tooltipTheme,
       y: {
         formatter: function(val) {
           return val + ' (' + ((val / total) * 100).toFixed(0) + '%)';
@@ -173,23 +219,38 @@ export const ByChannelChart: React.FC = () => {
       <h3 style={{ marginBottom: '16px', color: 'var(--text-primary)', fontSize: '16px', fontWeight: 600 }}>
         Messages by Channel
       </h3>
-      <Chart options={options} series={series} type="donut" height={300} />
+      <Chart key={chartKey} options={options} series={series} type="donut" height={300} />
     </div>
   );
 };
 
 export const ClientTypesChart: React.FC = () => {
+  const [chartKey, setChartKey] = useState(0);
+
+  useEffect(() => {
+    const cleanup = observeThemeChanges(() => {
+      setChartKey(prev => prev + 1);
+    });
+    return cleanup;
+  }, []);
+
+  const textColor = getChartTextColor();
+  const axisColor = getChartAxisColor();
+  const gridColor = getChartGridColor();
+  const themeMode = getChartThemeMode();
+  const tooltipTheme = getChartTooltipTheme();
+
   const options: ApexOptions = {
     chart: {
       type: 'pie',
       background: 'transparent',
       fontFamily: 'inherit'
     },
-    theme: { mode: 'dark' },
+    theme: { mode: themeMode },
     labels: ['no link sent', 'unpaid', 'paid'],
     colors: ['#B5B5C3', '#FFD166', '#24D39A'],
     legend: {
-      labels: { colors: 'rgba(255,255,255,0.7)' },
+      labels: { colors: textColor },
       position: 'bottom',
       formatter: function(seriesName, opts) {
         const val = opts.w.globals.series[opts.seriesIndex];
@@ -207,7 +268,7 @@ export const ClientTypesChart: React.FC = () => {
       style: { colors: ['#fff'] }
     },
     tooltip: {
-      theme: 'dark'
+      theme: tooltipTheme
     }
   };
 
@@ -218,23 +279,38 @@ export const ClientTypesChart: React.FC = () => {
       <h3 style={{ marginBottom: '16px', color: 'var(--text-primary)', fontSize: '16px', fontWeight: 600 }}>
         Client Types
       </h3>
-      <Chart options={options} series={series} type="pie" height={300} />
+      <Chart key={chartKey} options={options} series={series} type="pie" height={300} />
     </div>
   );
 };
 
 export const ByCompanyChart: React.FC = () => {
+  const [chartKey, setChartKey] = useState(0);
+
+  useEffect(() => {
+    const cleanup = observeThemeChanges(() => {
+      setChartKey(prev => prev + 1);
+    });
+    return cleanup;
+  }, []);
+
+  const textColor = getChartTextColor();
+  const axisColor = getChartAxisColor();
+  const gridColor = getChartGridColor();
+  const themeMode = getChartThemeMode();
+  const tooltipTheme = getChartTooltipTheme();
+
   const options: ApexOptions = {
     chart: {
       type: 'donut',
       background: 'transparent',
       fontFamily: 'inherit'
     },
-    theme: { mode: 'dark' },
-    labels: ['Surf Group Lessons', 'Consulting Services'],
+    theme: { mode: themeMode },
+    labels: ['Product Hotel Canarian', 'Service AI Agent'],
     colors: ['#00D4FF', '#00B388'],
     legend: {
-      labels: { colors: 'rgba(255,255,255,0.7)' },
+      labels: { colors: textColor },
       position: 'bottom'
     },
     dataLabels: {
@@ -242,7 +318,7 @@ export const ByCompanyChart: React.FC = () => {
       style: { colors: ['#fff'] }
     },
     tooltip: {
-      theme: 'dark'
+      theme: tooltipTheme
     },
     plotOptions: {
       pie: {
@@ -253,7 +329,7 @@ export const ByCompanyChart: React.FC = () => {
               show: true,
               label: 'Total messages',
               fontSize: '14px',
-              color: 'rgba(255,255,255,0.7)',
+              color: axisColor,
               formatter: () => '1,780'
             }
           }
@@ -269,23 +345,38 @@ export const ByCompanyChart: React.FC = () => {
       <h3 style={{ marginBottom: '16px', color: 'var(--text-primary)', fontSize: '16px', fontWeight: 600 }}>
         Messages by Company
       </h3>
-      <Chart options={options} series={series} type="donut" height={300} />
+      <Chart key={chartKey} options={options} series={series} type="donut" height={300} />
     </div>
   );
 };
 
 export const AnsweredMissedChart: React.FC = () => {
+  const [chartKey, setChartKey] = useState(0);
+
+  useEffect(() => {
+    const cleanup = observeThemeChanges(() => {
+      setChartKey(prev => prev + 1);
+    });
+    return cleanup;
+  }, []);
+
+  const textColor = getChartTextColor();
+  const axisColor = getChartAxisColor();
+  const gridColor = getChartGridColor();
+  const themeMode = getChartThemeMode();
+  const tooltipTheme = getChartTooltipTheme();
+
   const options: ApexOptions = {
     chart: {
       type: 'donut',
       background: 'transparent',
       fontFamily: 'inherit'
     },
-    theme: { mode: 'dark' },
+    theme: { mode: themeMode },
     labels: ['Answered', 'Missed'],
     colors: ['#24D39A', '#FF5C5C'],
     legend: {
-      labels: { colors: 'rgba(255,255,255,0.7)' },
+      labels: { colors: textColor },
       position: 'bottom'
     },
     dataLabels: {
@@ -293,7 +384,7 @@ export const AnsweredMissedChart: React.FC = () => {
       style: { colors: ['#fff'] }
     },
     tooltip: {
-      theme: 'dark'
+      theme: tooltipTheme
     }
   };
 
@@ -304,19 +395,34 @@ export const AnsweredMissedChart: React.FC = () => {
       <h3 style={{ marginBottom: '16px', color: 'var(--text-primary)', fontSize: '16px', fontWeight: 600 }}>
         Answered vs Missed
       </h3>
-      <Chart options={options} series={series} type="donut" height={300} />
+      <Chart key={chartKey} options={options} series={series} type="donut" height={300} />
     </div>
   );
 };
 
 export const AvgResponseChart: React.FC = () => {
+  const [chartKey, setChartKey] = useState(0);
+
+  useEffect(() => {
+    const cleanup = observeThemeChanges(() => {
+      setChartKey(prev => prev + 1);
+    });
+    return cleanup;
+  }, []);
+
+  const textColor = getChartTextColor();
+  const axisColor = getChartAxisColor();
+  const gridColor = getChartGridColor();
+  const themeMode = getChartThemeMode();
+  const tooltipTheme = getChartTooltipTheme();
+
   const options: ApexOptions = {
     chart: {
       type: 'radialBar',
       background: 'transparent',
       fontFamily: 'inherit'
     },
-    theme: { mode: 'dark' },
+    theme: { mode: themeMode },
     plotOptions: {
       radialBar: {
         startAngle: -135,
@@ -327,7 +433,7 @@ export const AvgResponseChart: React.FC = () => {
         dataLabels: {
           name: {
             fontSize: '14px',
-            color: 'rgba(255,255,255,0.7)',
+            color: axisColor,
             offsetY: -10
           },
           value: {
@@ -352,12 +458,27 @@ export const AvgResponseChart: React.FC = () => {
       <h3 style={{ marginBottom: '16px', color: 'var(--text-primary)', fontSize: '16px', fontWeight: 600 }}>
         Average Response Time
       </h3>
-      <Chart options={options} series={series} type="radialBar" height={300} />
+      <Chart key={chartKey} options={options} series={series} type="radialBar" height={300} />
     </div>
   );
 };
 
 export const ClientTypeBarChart: React.FC = () => {
+  const [chartKey, setChartKey] = useState(0);
+
+  useEffect(() => {
+    const cleanup = observeThemeChanges(() => {
+      setChartKey(prev => prev + 1);
+    });
+    return cleanup;
+  }, []);
+
+  const textColor = getChartTextColor();
+  const axisColor = getChartAxisColor();
+  const gridColor = getChartGridColor();
+  const themeMode = getChartThemeMode();
+  const tooltipTheme = getChartTooltipTheme();
+
   const options: ApexOptions = {
     chart: {
       type: 'bar',
@@ -365,7 +486,7 @@ export const ClientTypeBarChart: React.FC = () => {
       toolbar: { show: false },
       fontFamily: 'inherit'
     },
-    theme: { mode: 'dark' },
+    theme: { mode: themeMode },
     plotOptions: {
       bar: {
         horizontal: false,
@@ -390,16 +511,16 @@ export const ClientTypeBarChart: React.FC = () => {
     colors: ['#B5B5C3', '#FFD166', '#24D39A'],
     xaxis: {
       categories: ['no link sent', 'unpaid', 'paid'],
-      labels: { style: { colors: 'rgba(255,255,255,0.7)' } }
+      labels: { style: { colors: axisColor } }
     },
     yaxis: {
-      labels: { style: { colors: 'rgba(255,255,255,0.7)' } }
+      labels: { style: { colors: axisColor } }
     },
     legend: {
       show: false
     },
     tooltip: {
-      theme: 'dark',
+      theme: tooltipTheme,
       y: {
         formatter: function(val, opts) {
           const index = opts.dataPointIndex;
@@ -413,7 +534,7 @@ export const ClientTypeBarChart: React.FC = () => {
       }
     },
     grid: {
-      borderColor: 'rgba(255,255,255,0.1)'
+      borderColor: gridColor
     }
   };
 
@@ -424,7 +545,7 @@ export const ClientTypeBarChart: React.FC = () => {
       <h3 style={{ marginBottom: '16px', color: 'var(--text-primary)', fontSize: '16px', fontWeight: 600 }}>
         Client Type Distribution
       </h3>
-      <Chart options={options} series={series} type="bar" height={300} />
+      <Chart key={chartKey} options={options} series={series} type="bar" height={300} />
     </div>
   );
 };

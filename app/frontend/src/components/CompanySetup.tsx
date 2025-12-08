@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MessageCircle, Send, Instagram, Facebook, Mail, Music } from 'lucide-react';
 
 interface CompanySetupProps {
@@ -22,6 +22,27 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
   const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
   const [selectedPlan, setSelectedPlan] = useState('single');
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [specialOfferEnabled, setSpecialOfferEnabled] = useState(false);
+  const [specialOfferData, setSpecialOfferData] = useState<{ title: string; monthlyPrice: string; setupFee: string } | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('specialOffer');
+    if (saved) {
+      try {
+        const offer = JSON.parse(saved);
+        if (offer.enabled) {
+          setSpecialOfferEnabled(true);
+          setSpecialOfferData({
+            title: offer.title || 'Special Offer',
+            monthlyPrice: offer.monthlyPrice || '€349',
+            setupFee: offer.setupFee || '€149'
+          });
+        }
+      } catch (e) {
+        console.error('Failed to load special offer:', e);
+      }
+    }
+  }, []);
 
   const channels = [
     { id: 'whatsapp', name: 'WhatsApp', icon: MessageCircle, color: '#25D366' },
@@ -32,11 +53,19 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
     { id: 'tiktok', name: 'TikTok', icon: Music, color: '#000000' }
   ];
 
-  const plans = [
+  const basePlans = [
     { id: 'single', label: 'Single — €249/mo + Setup €199' },
-    { id: 'double', label: 'Double — €369/mo + Setup €249' },
-    { id: 'growth', label: 'Growth — €599/mo + Setup €399' }
+    { id: 'double', label: 'Double — €399/mo + Setup €299' },
+    { id: 'growth', label: 'Growth — €599/mo + Setup €399' },
+    { id: 'special', label: 'Special Offer — Custom €/mo + Custom Setup', color: '#F7C948' }
   ];
+
+  const plans = specialOfferEnabled && specialOfferData
+    ? [
+        { id: 'special', label: `${specialOfferData.title} — ${specialOfferData.monthlyPrice}/mo + Setup ${specialOfferData.setupFee}` },
+        ...basePlans
+      ]
+    : basePlans;
 
   const toggleChannel = (channelId: string) => {
     setSelectedChannels(prev =>
@@ -292,15 +321,25 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
                 background: 'var(--bg-secondary)',
                 border: '1px solid var(--glass-border)',
                 borderRadius: '8px',
-                color: 'var(--text-primary)',
+                color: basePlans.find(p => p.id === selectedPlan)?.color || 'var(--text-primary)',
                 fontSize: '14px',
+                fontWeight: selectedPlan === 'special' ? 600 : 400,
                 outline: 'none',
                 cursor: 'pointer',
                 transition: 'all var(--transition-fast)'
               }}
             >
               {plans.map(plan => (
-                <option key={plan.id} value={plan.id}>{plan.label}</option>
+                <option
+                  key={plan.id}
+                  value={plan.id}
+                  style={{
+                    color: plan.color || 'var(--text-primary)',
+                    fontWeight: plan.id === 'special' ? 600 : 400
+                  }}
+                >
+                  {plan.label}
+                </option>
               ))}
             </select>
           </div>

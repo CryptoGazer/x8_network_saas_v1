@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CreditCard, Wallet, CheckCircle, XCircle } from 'lucide-react';
 
 interface BillingSubscriptionsProps {
@@ -17,18 +17,49 @@ interface BillingHistoryRow {
   status: string;
 }
 
+interface SpecialOfferConfig {
+  enabled: boolean;
+  title: string;
+  monthlyPrice: string;
+  setupFee: string;
+  channelsAllowed: string;
+  description: string;
+}
+
 export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ language, onNavigate }) => {
   const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [showCardModal, setShowCardModal] = useState(false);
   const [showManageSubscriptionModal, setShowManageSubscriptionModal] = useState(false);
   const [showActivateModal, setShowActivateModal] = useState(false);
+  const [showSpecialOfferModal, setShowSpecialOfferModal] = useState(false);
+  const [isAdmin] = useState(true);
+
+  const [specialOffer, setSpecialOffer] = useState<SpecialOfferConfig>({
+    enabled: false,
+    title: 'Special Offer',
+    monthlyPrice: '€349',
+    setupFee: '€149',
+    channelsAllowed: '3 channels (WhatsApp, Instagram, Telegram)',
+    description: 'Limited time offer with premium features'
+  });
+
+  useEffect(() => {
+    const saved = localStorage.getItem('specialOffer');
+    if (saved) {
+      try {
+        setSpecialOffer(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to load special offer:', e);
+      }
+    }
+  }, []);
 
   const billingHistory: BillingHistoryRow[] = [
     {
       paymentId: 'PAY-001',
       date: '31.10.2025',
-      description: 'Stripe charge — Surf Group Lessons',
-      project: 'Surf Group Lessons',
+      description: 'Stripe charge — Product Hotel Canarian',
+      project: 'Product Hotel Canarian',
       tariff: 'Single',
       amount: '€448.00',
       method: 'Visa ****4242',
@@ -37,8 +68,8 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
     {
       paymentId: 'PAY-002',
       date: '09.10.2025',
-      description: 'Stripe charge — Consulting Services',
-      project: 'Consulting Services',
+      description: 'Stripe charge — Service AI Agent',
+      project: 'Service AI Agent',
       tariff: 'Growth',
       amount: '€998.00',
       method: 'Card ****1111',
@@ -206,21 +237,109 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
 
         {/* 4. Plans & Subscriptions */}
         <div id="plans.subscriptions" className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
-            {language === 'EN' ? 'Plans & Subscriptions' : 'Planes y Suscripciones'}
-          </h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)' }}>
+              {language === 'EN' ? 'Plans & Subscriptions' : 'Planes y Suscripciones'}
+            </h2>
+            {isAdmin && (
+              <button
+                onClick={() => setShowSpecialOfferModal(true)}
+                style={{
+                  padding: '8px 16px',
+                  background: 'rgba(201, 160, 77, 0.15)',
+                  border: '1px solid var(--gold-accent)',
+                  borderRadius: '6px',
+                  color: 'var(--gold-accent)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                {language === 'EN' ? 'Manage Special Offer' : 'Gestionar Oferta Especial'}
+              </button>
+            )}
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
-            <div style={{ padding: '16px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+            {specialOffer.enabled && (
+              <div style={{
+                padding: '20px',
+                background: 'linear-gradient(135deg, rgba(201, 160, 77, 0.1), rgba(0, 212, 255, 0.05))',
+                borderRadius: '8px',
+                border: '2px solid var(--gold-accent)',
+                position: 'relative'
+              }}>
+                <div style={{
+                  position: 'absolute',
+                  top: '-10px',
+                  left: '16px',
+                  padding: '4px 12px',
+                  background: 'var(--gold-accent)',
+                  color: '#000',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  borderRadius: '4px',
+                  textTransform: 'uppercase'
+                }}>
+                  {language === 'EN' ? 'Special' : 'Especial'}
+                </div>
+                <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px', marginTop: '8px' }}>
+                  {specialOffer.title}
+                </div>
+                <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--gold-accent)', marginBottom: '4px' }}>
+                  {specialOffer.monthlyPrice} / {language === 'EN' ? 'month' : 'mes'}
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  {language === 'EN' ? 'one-time setup:' : 'configuración única:'} {specialOffer.setupFee}
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--text-primary)', marginBottom: '12px' }}>
+                  {specialOffer.channelsAllowed}
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px', fontStyle: 'italic' }}>
+                  {specialOffer.description}
+                </div>
+                <button
+                  onClick={() => setShowActivateModal(true)}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    background: 'var(--gold-accent)',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: '#000',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontSize: '13px'
+                  }}
+                >
+                  {language === 'EN' ? 'Activate' : 'Activar'}
+                </button>
+              </div>
+            )}
+
+            <div style={{ padding: '20px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
               <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>Single</div>
-              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--brand-cyan)', marginBottom: '8px' }}>€249/mo</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-                {language === 'EN' ? '+ €199 setup fee' : '+ €199 tarifa de instalación'}
+              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--brand-cyan)', marginBottom: '4px' }}>
+                €249 / {language === 'EN' ? 'month' : 'mes'}
               </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                {language === 'EN' ? 'one-time setup: €199' : 'configuración única: €199'}
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                {language === 'EN' ? '1 channel (example: WhatsApp)' : '1 canal (ejemplo: WhatsApp)'}
+              </div>
+              <ul style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px', paddingLeft: '20px', listStyle: 'disc' }}>
+                <li>{language === 'EN' ? 'Up to 1,000 conversations' : 'Hasta 1,000 conversaciones'}</li>
+                <li>{language === 'EN' ? 'Product training' : 'Entrenamiento del producto'}</li>
+                <li>{language === 'EN' ? 'Stripe integration' : 'Integración con Stripe'}</li>
+                <li>Dashboard</li>
+                <li>Connect</li>
+              </ul>
               <button
                 onClick={() => setShowActivateModal(true)}
                 style={{
                   width: '100%',
-                  padding: '8px',
+                  padding: '10px',
                   background: 'transparent',
                   border: '1px solid var(--brand-cyan)',
                   borderRadius: '6px',
@@ -234,41 +353,64 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
               </button>
             </div>
 
-            <div style={{ padding: '16px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+            <div style={{ padding: '20px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+              <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>Double</div>
+              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--brand-cyan)', marginBottom: '4px' }}>
+                €399 / {language === 'EN' ? 'month' : 'mes'}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                {language === 'EN' ? 'one-time setup: €299' : 'configuración única: €299'}
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                {language === 'EN' ? '2 channels (example: WhatsApp + Gmail)' : '2 canales (ejemplo: WhatsApp + Gmail)'}
+              </div>
+              <ul style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px', paddingLeft: '20px', listStyle: 'disc' }}>
+                <li>{language === 'EN' ? '1,000 conversations per channel' : '1,000 conversaciones por canal'}</li>
+                <li>{language === 'EN' ? 'Media replies' : 'Respuestas multimedia'}</li>
+                <li>{language === 'EN' ? 'Payment reminders' : 'Recordatorios de pago'}</li>
+                <li>{language === 'EN' ? 'Dashboard & analytics' : 'Dashboard y análisis'}</li>
+                <li>Connect</li>
+              </ul>
+              <button
+                onClick={() => setShowActivateModal(true)}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  background: 'transparent',
+                  border: '1px solid var(--brand-cyan)',
+                  borderRadius: '6px',
+                  color: 'var(--brand-cyan)',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  fontSize: '13px'
+                }}
+              >
+                {language === 'EN' ? 'Activate' : 'Activar'}
+              </button>
+            </div>
+
+            <div style={{ padding: '20px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
               <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>Growth</div>
-              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--brand-cyan)', marginBottom: '8px' }}>€599/mo</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-                {language === 'EN' ? '+ €399 setup fee' : '+ €399 tarifa de instalación'}
+              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--brand-cyan)', marginBottom: '4px' }}>
+                €599 / {language === 'EN' ? 'month' : 'mes'}
               </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                {language === 'EN' ? 'one-time setup: €399' : 'configuración única: €399'}
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                {language === 'EN' ? '4 channels (example: WhatsApp, Gmail, Instagram, Facebook)' : '4 canales (ejemplo: WhatsApp, Gmail, Instagram, Facebook)'}
+              </div>
+              <ul style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px', paddingLeft: '20px', listStyle: 'disc' }}>
+                <li>{language === 'EN' ? '5,000 conversations' : '5,000 conversaciones'}</li>
+                <li>{language === 'EN' ? 'Full automation suite' : 'Suite completa de automatización'}</li>
+                <li>{language === 'EN' ? 'Exports & extended analytics' : 'Exportaciones y análisis extendido'}</li>
+                <li>Dashboard</li>
+              </ul>
               <button
                 onClick={() => setShowActivateModal(true)}
                 style={{
                   width: '100%',
-                  padding: '8px',
-                  background: 'transparent',
-                  border: '1px solid var(--brand-cyan)',
-                  borderRadius: '6px',
-                  color: 'var(--brand-cyan)',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  fontSize: '13px'
-                }}
-              >
-                {language === 'EN' ? 'Activate' : 'Activar'}
-              </button>
-            </div>
-
-            <div style={{ padding: '16px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-              <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>Enterprise</div>
-              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--brand-cyan)', marginBottom: '8px' }}>€1,299/mo</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-                {language === 'EN' ? '+ €799 setup fee' : '+ €799 tarifa de instalación'}
-              </div>
-              <button
-                onClick={() => setShowActivateModal(true)}
-                style={{
-                  width: '100%',
-                  padding: '8px',
+                  padding: '10px',
                   background: 'transparent',
                   border: '1px solid var(--brand-cyan)',
                   borderRadius: '6px',
@@ -292,7 +434,7 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
           <div style={{ display: 'grid', gap: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
               <div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>Surf Group Lessons</div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>Product Hotel Canarian</div>
                 <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Single - €249/mo</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -318,7 +460,7 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
               <div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>Consulting Services</div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>Service AI Agent</div>
                 <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Growth - €599/mo</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -710,8 +852,8 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
                 color: 'var(--text-primary)',
                 fontSize: '14px'
               }}>
-                <option>Surf Group Lessons</option>
-                <option>Consulting Services</option>
+                <option>Product Hotel Canarian</option>
+                <option>Service AI Agent</option>
               </select>
             </div>
             <div style={{ marginBottom: '20px', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
@@ -753,6 +895,202 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
                 }}
               >
                 {language === 'EN' ? 'Activate Plan' : 'Activar Plan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Special Offer Admin Modal */}
+      {showSpecialOfferModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          backdropFilter: 'blur(4px)'
+        }} onClick={() => setShowSpecialOfferModal(false)}>
+          <div onClick={(e) => e.stopPropagation()} style={{
+            background: 'var(--bg-primary)',
+            borderRadius: '16px',
+            padding: '32px',
+            maxWidth: '500px',
+            width: '90%',
+            border: '1px solid var(--glass-border)',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+          }}>
+            <h3 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '20px' }}>
+              {language === 'EN' ? 'Manage Special Offer' : 'Gestionar Oferta Especial'}
+            </h3>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={specialOffer.enabled}
+                  onChange={(e) => setSpecialOffer({ ...specialOffer, enabled: e.target.checked })}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {language === 'EN' ? 'Enable Special Offer' : 'Activar Oferta Especial'}
+                </span>
+              </label>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                {language === 'EN' ? 'Offer Title' : 'Título de la Oferta'}
+              </label>
+              <input
+                type="text"
+                value={specialOffer.title}
+                onChange={(e) => setSpecialOffer({ ...specialOffer, title: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: '8px',
+                  color: 'var(--text-primary)',
+                  fontSize: '14px',
+                  outline: 'none'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  {language === 'EN' ? 'Monthly Price' : 'Precio Mensual'}
+                </label>
+                <input
+                  type="text"
+                  value={specialOffer.monthlyPrice}
+                  onChange={(e) => setSpecialOffer({ ...specialOffer, monthlyPrice: e.target.value })}
+                  placeholder="€349"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--glass-border)',
+                    borderRadius: '8px',
+                    color: 'var(--text-primary)',
+                    fontSize: '14px',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  {language === 'EN' ? 'Setup Fee' : 'Tarifa de Instalación'}
+                </label>
+                <input
+                  type="text"
+                  value={specialOffer.setupFee}
+                  onChange={(e) => setSpecialOffer({ ...specialOffer, setupFee: e.target.value })}
+                  placeholder="€149"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--glass-border)',
+                    borderRadius: '8px',
+                    color: 'var(--text-primary)',
+                    fontSize: '14px',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                {language === 'EN' ? 'Channels Allowed' : 'Canales Permitidos'}
+              </label>
+              <input
+                type="text"
+                value={specialOffer.channelsAllowed}
+                onChange={(e) => setSpecialOffer({ ...specialOffer, channelsAllowed: e.target.value })}
+                placeholder="3 channels (WhatsApp, Instagram, Telegram)"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: '8px',
+                  color: 'var(--text-primary)',
+                  fontSize: '14px',
+                  outline: 'none'
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                {language === 'EN' ? 'Description' : 'Descripción'}
+              </label>
+              <textarea
+                value={specialOffer.description}
+                onChange={(e) => setSpecialOffer({ ...specialOffer, description: e.target.value })}
+                placeholder="Limited time offer with premium features"
+                rows={3}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: '8px',
+                  color: 'var(--text-primary)',
+                  fontSize: '14px',
+                  outline: 'none',
+                  resize: 'vertical',
+                  fontFamily: 'inherit'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setShowSpecialOfferModal(false)}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: 'transparent',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: '8px',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: 500
+                }}
+              >
+                {language === 'EN' ? 'Cancel' : 'Cancelar'}
+              </button>
+              <button
+                onClick={() => {
+                  localStorage.setItem('specialOffer', JSON.stringify(specialOffer));
+                  setShowSpecialOfferModal(false);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: 'linear-gradient(135deg, var(--gold-accent), #d4a854)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#000',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+              >
+                {language === 'EN' ? 'Save Changes' : 'Guardar Cambios'}
               </button>
             </div>
           </div>

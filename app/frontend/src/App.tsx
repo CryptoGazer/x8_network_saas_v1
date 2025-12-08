@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
+import { BottomNav } from './components/BottomNav';
+import { MobileSidebar } from './components/MobileSidebar';
+import { MobileHeader, getWindowTitle } from './components/MobileHeader';
 import { CompanyCard, Company } from './components/CompanyCard';
 import { CompanyPreview } from './components/CompanyPreview';
 import { TimeFilter, TimeRange } from './components/TimeFilter';
@@ -10,12 +13,12 @@ import { CompanySetup } from './components/CompanySetup';
 import { KnowledgeBase } from './components/KnowledgeBase';
 import { IntegrationsTokens } from './components/IntegrationsTokens';
 import { SupportPanel } from './components/SupportPanel';
-import { AuthChoice } from './components/AuthChoice';
-import { Login } from './components/Login';
-import { Register } from './components/Register';
-import { RegisterWith2FA } from './components/RegisterWith2FA';
-import { ManagerDashboard } from './components/ManagerDashboard';
-import { AdminDashboard } from './components/AdminDashboard';
+import { AnalyticsDashboard } from './components/AnalyticsDashboard';
+import { ActivityLogs } from './components/ActivityLogs';
+import { TrainingStudio } from './components/TrainingStudio';
+import { ProfileSettings } from './components/ProfileSettings';
+import { ConversationCenter } from './components/ConversationCenter';
+import { OrderCalendar } from './components/OrderCalendar';
 import {
   RevenueChannelsChart,
   DialogsSentReceivedChart,
@@ -26,7 +29,6 @@ import {
   AvgResponseChart,
   ClientTypeBarChart
 } from './components/Charts';
-import { apiClient } from './lib/api';
 
 const demoCompanies: Company[] = [
   {
@@ -63,65 +65,38 @@ const demoCompanies: Company[] = [
   }
 ];
 
-type AuthScreen = 'choice' | 'login' | 'register';
-
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authScreen, setAuthScreen] = useState<AuthScreen>('choice');
   const [currentWindow, setCurrentWindow] = useState('WINDOW_0');
   const [timeRange, setTimeRange] = useState<TimeRange>('All');
   const [userName] = useState('User');
   const [language, setLanguage] = useState('EN');
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
-  const [user, setUser] = useState<any>(null);
-  const [isLoadingUser, setIsLoadingUser] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
-    const authStatus = apiClient.isAuthenticated();
-    if (authStatus) {
+    const authStatus = localStorage.getItem('isAuthenticated');
+    if (authStatus === 'true') {
       setIsAuthenticated(true);
-      loadUserData();
     } else {
       setIsAuthenticated(false);
       setCurrentWindow('WINDOW_AUTH');
     }
   }, []);
 
-  const loadUserData = async () => {
-    try {
-      setIsLoadingUser(true);
-      const userData = await apiClient.getCurrentUser();
-      setUser(userData);
-    } catch (error) {
-      console.error('Failed to load user:', error);
-      apiClient.clearTokens();
-      setIsAuthenticated(false);
-      setCurrentWindow('WINDOW_AUTH');
-    } finally {
-      setIsLoadingUser(false);
-    }
-  };
-
   const handleNavigate = (window: string) => {
     if (window === 'WINDOW_AUTH') {
-      apiClient.clearTokens();
+      localStorage.removeItem('isAuthenticated');
       setIsAuthenticated(false);
-      setAuthScreen('choice');
     }
     setCurrentWindow(window);
+    setIsMobileSidebarOpen(false);
   };
 
   const handleLogout = () => {
-    apiClient.clearTokens();
+    localStorage.removeItem('isAuthenticated');
     setIsAuthenticated(false);
-    setAuthScreen('choice');
     setCurrentWindow('WINDOW_AUTH');
-  };
-
-  const handleAuthSuccess = async () => {
-    setIsAuthenticated(true);
-    setCurrentWindow('WINDOW_0');
-    await loadUserData();
   };
 
   const handleCompanyClick = (company: Company) => {
@@ -132,78 +107,59 @@ function App() {
     setSelectedCompany(null);
   };
 
-  // Show loading while fetching user data after authentication
-  if (isLoadingUser) {
+  if (!isAuthenticated || currentWindow === 'WINDOW_AUTH') {
     return (
       <div style={{
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'var(--bg-primary)',
-        color: 'var(--text-primary)'
+        background: 'var(--bg-primary)'
       }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '18px', fontWeight: 600 }}>Loading...</div>
+        <div className="glass-card" style={{
+          padding: '48px',
+          maxWidth: '400px',
+          width: '90%',
+          textAlign: 'center'
+        }}>
+          <h1 style={{
+            fontSize: '32px',
+            fontWeight: 700,
+            marginBottom: '24px',
+            background: 'linear-gradient(135deg, var(--brand-cyan), var(--brand-teal))',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          }}>
+            x8work
+          </h1>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>
+            Please log in to continue
+          </p>
+          <button
+            onClick={() => {
+              localStorage.setItem('isAuthenticated', 'true');
+              setIsAuthenticated(true);
+              setCurrentWindow('WINDOW_0');
+            }}
+            className="glass-card"
+            style={{
+              width: '100%',
+              padding: '16px',
+              border: '1px solid var(--brand-cyan)',
+              borderRadius: '8px',
+              background: 'rgba(0, 212, 255, 0.15)',
+              color: 'var(--brand-cyan)',
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: '16px'
+            }}
+          >
+            Login (Demo)
+          </button>
         </div>
       </div>
     );
-  }
-
-  // Role-based routing for authenticated users with loaded user data
-  if (isAuthenticated && user) {
-    if (user.role === 'admin') {
-      return (
-        <AdminDashboard
-          language={language}
-          onLanguageChange={setLanguage}
-          onLogout={handleLogout}
-        />
-      );
-    }
-
-    if (user.role === 'manager') {
-      return (
-        <ManagerDashboard
-          language={language}
-          onLanguageChange={setLanguage}
-          onLogout={handleLogout}
-        />
-      );
-    }
-
-    // Client dashboard - continue to main dashboard below
-  }
-
-  if (!isAuthenticated || currentWindow === 'WINDOW_AUTH') {
-    if (authScreen === 'choice') {
-      return (
-        <AuthChoice
-          onChoose={(choice) => setAuthScreen(choice)}
-          language={language}
-        />
-      );
-    }
-
-    if (authScreen === 'login') {
-      return (
-        <Login
-          onSuccess={handleAuthSuccess}
-          onBack={() => setAuthScreen('choice')}
-          language={language}
-        />
-      );
-    }
-
-    if (authScreen === 'register') {
-      return (
-        <RegisterWith2FA
-          onSuccess={handleAuthSuccess}
-          onBack={() => setAuthScreen('choice')}
-          language={language}
-        />
-      );
-    }
   }
 
   if (currentWindow === 'WINDOW_1') {
@@ -214,12 +170,30 @@ function App() {
       }}>
         <Header onNavigate={handleNavigate} onLogout={handleLogout} language={language} onLanguageChange={setLanguage} />
         <Sidebar onNavigate={handleNavigate} currentWindow={currentWindow} language={language} />
+        <MobileSidebar
+          isOpen={isMobileSidebarOpen}
+          onClose={() => setIsMobileSidebarOpen(false)}
+          currentWindow={currentWindow}
+          onNavigate={handleNavigate}
+          language={language}
+        />
+        <MobileHeader
+          title={getWindowTitle(currentWindow, language)}
+          onMenuClick={() => setIsMobileSidebarOpen(true)}
+          onUserClick={() => handleNavigate('WINDOW_12')}
+          language={language}
+          onLanguageChange={setLanguage}
+        />
+        <BottomNav currentWindow={currentWindow} onNavigate={handleNavigate} language={language} />
 
         <div style={{
           marginLeft: '328px',
           marginTop: '80px',
           flex: 1
-        }}>
+        }} className="desktop-only">
+          <BillingSubscriptions language={language} onNavigate={handleNavigate} />
+        </div>
+        <div style={{ padding: '16px' }} className="mobile-only">
           <BillingSubscriptions language={language} onNavigate={handleNavigate} />
         </div>
       </div>
@@ -234,12 +208,30 @@ function App() {
       }}>
         <Header onNavigate={handleNavigate} onLogout={handleLogout} language={language} onLanguageChange={setLanguage} />
         <Sidebar onNavigate={handleNavigate} currentWindow={currentWindow} language={language} />
+        <MobileSidebar
+          isOpen={isMobileSidebarOpen}
+          onClose={() => setIsMobileSidebarOpen(false)}
+          currentWindow={currentWindow}
+          onNavigate={handleNavigate}
+          language={language}
+        />
+        <MobileHeader
+          title={getWindowTitle(currentWindow, language)}
+          onMenuClick={() => setIsMobileSidebarOpen(true)}
+          onUserClick={() => handleNavigate('WINDOW_12')}
+          language={language}
+          onLanguageChange={setLanguage}
+        />
+        <BottomNav currentWindow={currentWindow} onNavigate={handleNavigate} language={language} />
 
         <div style={{
           marginLeft: '328px',
           marginTop: '80px',
           flex: 1
-        }}>
+        }} className="desktop-only">
+          <CompanySetup language={language} onNavigate={handleNavigate} />
+        </div>
+        <div style={{ padding: '16px' }} className="mobile-only">
           <CompanySetup language={language} onNavigate={handleNavigate} />
         </div>
       </div>
@@ -254,13 +246,69 @@ function App() {
       }}>
         <Header onNavigate={handleNavigate} onLogout={handleLogout} language={language} onLanguageChange={setLanguage} />
         <Sidebar onNavigate={handleNavigate} currentWindow={currentWindow} language={language} />
+        <MobileSidebar
+          isOpen={isMobileSidebarOpen}
+          onClose={() => setIsMobileSidebarOpen(false)}
+          currentWindow={currentWindow}
+          onNavigate={handleNavigate}
+          language={language}
+        />
+        <MobileHeader
+          title={getWindowTitle(currentWindow, language)}
+          onMenuClick={() => setIsMobileSidebarOpen(true)}
+          onUserClick={() => handleNavigate('WINDOW_12')}
+          language={language}
+          onLanguageChange={setLanguage}
+        />
+        <BottomNav currentWindow={currentWindow} onNavigate={handleNavigate} language={language} />
 
         <div style={{
           marginLeft: '328px',
           marginTop: '80px',
           flex: 1
-        }}>
+        }} className="desktop-only">
           <KnowledgeBase language={language} onNavigate={handleNavigate} />
+        </div>
+        <div style={{ padding: '16px' }} className="mobile-only">
+          <KnowledgeBase language={language} onNavigate={handleNavigate} />
+        </div>
+      </div>
+    );
+  }
+
+  if (currentWindow === 'WINDOW_4') {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'var(--bg-primary)'
+      }}>
+        <Header onNavigate={handleNavigate} onLogout={handleLogout} language={language} onLanguageChange={setLanguage} />
+        <Sidebar onNavigate={handleNavigate} currentWindow={currentWindow} language={language} />
+        <MobileSidebar
+          isOpen={isMobileSidebarOpen}
+          onClose={() => setIsMobileSidebarOpen(false)}
+          currentWindow={currentWindow}
+          onNavigate={handleNavigate}
+          language={language}
+        />
+        <MobileHeader
+          title={getWindowTitle(currentWindow, language)}
+          onMenuClick={() => setIsMobileSidebarOpen(true)}
+          onUserClick={() => handleNavigate('WINDOW_12')}
+          language={language}
+          onLanguageChange={setLanguage}
+        />
+        <BottomNav currentWindow={currentWindow} onNavigate={handleNavigate} language={language} />
+
+        <div style={{
+          marginLeft: '328px',
+          marginTop: '80px',
+          flex: 1
+        }} className="desktop-only">
+          <AnalyticsDashboard language={language} onNavigate={handleNavigate} />
+        </div>
+        <div style={{ padding: '16px' }} className="mobile-only">
+          <AnalyticsDashboard language={language} onNavigate={handleNavigate} />
         </div>
       </div>
     );
@@ -274,13 +322,107 @@ function App() {
       }}>
         <Header onNavigate={handleNavigate} onLogout={handleLogout} language={language} onLanguageChange={setLanguage} />
         <Sidebar onNavigate={handleNavigate} currentWindow={currentWindow} language={language} />
+        <MobileSidebar
+          isOpen={isMobileSidebarOpen}
+          onClose={() => setIsMobileSidebarOpen(false)}
+          currentWindow={currentWindow}
+          onNavigate={handleNavigate}
+          language={language}
+        />
+        <MobileHeader
+          title={getWindowTitle(currentWindow, language)}
+          onMenuClick={() => setIsMobileSidebarOpen(true)}
+          onUserClick={() => handleNavigate('WINDOW_12')}
+          language={language}
+          onLanguageChange={setLanguage}
+        />
+        <BottomNav currentWindow={currentWindow} onNavigate={handleNavigate} language={language} />
 
         <div style={{
           marginLeft: '328px',
           marginTop: '80px',
           flex: 1
-        }}>
+        }} className="desktop-only">
           <IntegrationsTokens language={language} onNavigate={handleNavigate} />
+        </div>
+        <div style={{ padding: '16px' }} className="mobile-only">
+          <IntegrationsTokens language={language} onNavigate={handleNavigate} />
+        </div>
+      </div>
+    );
+  }
+
+  if (currentWindow === 'WINDOW_7') {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'var(--bg-primary)'
+      }}>
+        <Header onNavigate={handleNavigate} onLogout={handleLogout} language={language} onLanguageChange={setLanguage} />
+        <Sidebar onNavigate={handleNavigate} currentWindow={currentWindow} language={language} />
+        <MobileSidebar
+          isOpen={isMobileSidebarOpen}
+          onClose={() => setIsMobileSidebarOpen(false)}
+          currentWindow={currentWindow}
+          onNavigate={handleNavigate}
+          language={language}
+        />
+        <MobileHeader
+          title={getWindowTitle(currentWindow, language)}
+          onMenuClick={() => setIsMobileSidebarOpen(true)}
+          onUserClick={() => handleNavigate('WINDOW_12')}
+          language={language}
+          onLanguageChange={setLanguage}
+        />
+        <BottomNav currentWindow={currentWindow} onNavigate={handleNavigate} language={language} />
+
+        <div style={{
+          marginLeft: '328px',
+          marginTop: '80px',
+          flex: 1
+        }} className="desktop-only">
+          <ConversationCenter language={language} onNavigate={handleNavigate} />
+        </div>
+        <div style={{ padding: '16px' }} className="mobile-only">
+          <ConversationCenter language={language} onNavigate={handleNavigate} />
+        </div>
+      </div>
+    );
+  }
+
+  if (currentWindow === 'WINDOW_13') {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'var(--bg-primary)'
+      }}>
+        <Header onNavigate={handleNavigate} onLogout={handleLogout} language={language} onLanguageChange={setLanguage} />
+        <Sidebar onNavigate={handleNavigate} currentWindow={currentWindow} language={language} />
+        <MobileSidebar
+          isOpen={isMobileSidebarOpen}
+          onClose={() => setIsMobileSidebarOpen(false)}
+          currentWindow={currentWindow}
+          onNavigate={handleNavigate}
+          language={language}
+        />
+        <MobileHeader
+          title={getWindowTitle(currentWindow, language)}
+          onMenuClick={() => setIsMobileSidebarOpen(true)}
+          onUserClick={() => handleNavigate('WINDOW_12')}
+          language={language}
+          onLanguageChange={setLanguage}
+        />
+        <BottomNav currentWindow={currentWindow} onNavigate={handleNavigate} language={language} />
+
+        <div style={{
+          marginLeft: '328px',
+          marginTop: '80px',
+          flex: 1
+        }} className="desktop-only">
+          <OrderCalendar language={language} onNavigate={handleNavigate} />
+        </div>
+        <div style={{ padding: '16px' }} className="mobile-only">
+          <OrderCalendar language={language} onNavigate={handleNavigate} />
         </div>
       </div>
     );
@@ -294,13 +436,145 @@ function App() {
       }}>
         <Header onNavigate={handleNavigate} onLogout={handleLogout} language={language} onLanguageChange={setLanguage} />
         <Sidebar onNavigate={handleNavigate} currentWindow={currentWindow} language={language} />
+        <MobileSidebar
+          isOpen={isMobileSidebarOpen}
+          onClose={() => setIsMobileSidebarOpen(false)}
+          currentWindow={currentWindow}
+          onNavigate={handleNavigate}
+          language={language}
+        />
+        <MobileHeader
+          title={getWindowTitle(currentWindow, language)}
+          onMenuClick={() => setIsMobileSidebarOpen(true)}
+          onUserClick={() => handleNavigate('WINDOW_12')}
+          language={language}
+          onLanguageChange={setLanguage}
+        />
+        <BottomNav currentWindow={currentWindow} onNavigate={handleNavigate} language={language} />
 
         <div style={{
           marginLeft: '328px',
           marginTop: '80px',
           flex: 1
-        }}>
+        }} className="desktop-only">
           <SupportPanel language={language} onNavigate={handleNavigate} />
+        </div>
+        <div style={{ padding: '16px' }} className="mobile-only">
+          <SupportPanel language={language} onNavigate={handleNavigate} />
+        </div>
+      </div>
+    );
+  }
+
+  if (currentWindow === 'WINDOW_10') {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'var(--bg-primary)'
+      }}>
+        <Header onNavigate={handleNavigate} onLogout={handleLogout} language={language} onLanguageChange={setLanguage} />
+        <Sidebar onNavigate={handleNavigate} currentWindow={currentWindow} language={language} />
+        <MobileSidebar
+          isOpen={isMobileSidebarOpen}
+          onClose={() => setIsMobileSidebarOpen(false)}
+          currentWindow={currentWindow}
+          onNavigate={handleNavigate}
+          language={language}
+        />
+        <MobileHeader
+          title={getWindowTitle(currentWindow, language)}
+          onMenuClick={() => setIsMobileSidebarOpen(true)}
+          onUserClick={() => handleNavigate('WINDOW_12')}
+          language={language}
+          onLanguageChange={setLanguage}
+        />
+        <BottomNav currentWindow={currentWindow} onNavigate={handleNavigate} language={language} />
+
+        <div style={{
+          marginLeft: '328px',
+          marginTop: '80px',
+          flex: 1
+        }} className="desktop-only">
+          <ActivityLogs language={language} onNavigate={handleNavigate} />
+        </div>
+        <div style={{ padding: '16px' }} className="mobile-only">
+          <ActivityLogs language={language} onNavigate={handleNavigate} />
+        </div>
+      </div>
+    );
+  }
+
+  if (currentWindow === 'WINDOW_11') {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'var(--bg-primary)'
+      }}>
+        <Header onNavigate={handleNavigate} onLogout={handleLogout} language={language} onLanguageChange={setLanguage} />
+        <Sidebar onNavigate={handleNavigate} currentWindow={currentWindow} language={language} />
+        <MobileSidebar
+          isOpen={isMobileSidebarOpen}
+          onClose={() => setIsMobileSidebarOpen(false)}
+          currentWindow={currentWindow}
+          onNavigate={handleNavigate}
+          language={language}
+        />
+        <MobileHeader
+          title={getWindowTitle(currentWindow, language)}
+          onMenuClick={() => setIsMobileSidebarOpen(true)}
+          onUserClick={() => handleNavigate('WINDOW_12')}
+          language={language}
+          onLanguageChange={setLanguage}
+        />
+        <BottomNav currentWindow={currentWindow} onNavigate={handleNavigate} language={language} />
+
+        <div style={{
+          marginLeft: '328px',
+          marginTop: '80px',
+          flex: 1
+        }} className="desktop-only">
+          <TrainingStudio language={language} onNavigate={handleNavigate} />
+        </div>
+        <div style={{ padding: '16px' }} className="mobile-only">
+          <TrainingStudio language={language} onNavigate={handleNavigate} />
+        </div>
+      </div>
+    );
+  }
+
+  if (currentWindow === 'WINDOW_12') {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'var(--bg-primary)'
+      }}>
+        <Header onNavigate={handleNavigate} onLogout={handleLogout} language={language} onLanguageChange={setLanguage} />
+        <Sidebar onNavigate={handleNavigate} currentWindow={currentWindow} language={language} />
+        <MobileSidebar
+          isOpen={isMobileSidebarOpen}
+          onClose={() => setIsMobileSidebarOpen(false)}
+          currentWindow={currentWindow}
+          onNavigate={handleNavigate}
+          language={language}
+        />
+        <MobileHeader
+          title={getWindowTitle(currentWindow, language)}
+          onMenuClick={() => setIsMobileSidebarOpen(true)}
+          onUserClick={() => handleNavigate('WINDOW_12')}
+          language={language}
+          onLanguageChange={setLanguage}
+        />
+        <BottomNav currentWindow={currentWindow} onNavigate={handleNavigate} language={language} />
+
+        <div style={{
+          marginLeft: '328px',
+          marginTop: '80px',
+          flex: 1
+        }} className="desktop-only">
+          <ProfileSettings language={language} onNavigate={handleNavigate} />
+        </div>
+        <div style={{ padding: '16px' }} className="mobile-only">
+          <ProfileSettings language={language} onNavigate={handleNavigate} />
         </div>
       </div>
     );
@@ -317,6 +591,21 @@ function App() {
       }}>
         <Header onNavigate={handleNavigate} onLogout={handleLogout} language={language} onLanguageChange={setLanguage} />
         <Sidebar onNavigate={handleNavigate} currentWindow={currentWindow} language={language} />
+        <MobileSidebar
+          isOpen={isMobileSidebarOpen}
+          onClose={() => setIsMobileSidebarOpen(false)}
+          currentWindow={currentWindow}
+          onNavigate={handleNavigate}
+          language={language}
+        />
+        <MobileHeader
+          title={getWindowTitle(currentWindow, language)}
+          onMenuClick={() => setIsMobileSidebarOpen(true)}
+          onUserClick={() => handleNavigate('WINDOW_12')}
+          language={language}
+          onLanguageChange={setLanguage}
+        />
+        <BottomNav currentWindow={currentWindow} onNavigate={handleNavigate} language={language} />
 
         <div style={{
           marginLeft: '328px',
@@ -368,10 +657,23 @@ function App() {
     }}>
       <Header onNavigate={handleNavigate} onLogout={handleLogout} language={language} onLanguageChange={setLanguage} />
       <Sidebar onNavigate={handleNavigate} currentWindow={currentWindow} language={language} />
+      <MobileSidebar
+        isOpen={isMobileSidebarOpen}
+        onClose={() => setIsMobileSidebarOpen(false)}
+        currentWindow={currentWindow}
+        onNavigate={handleNavigate}
+        language={language}
+      />
+      <MobileHeader
+        title={getWindowTitle(currentWindow, language)}
+        onMenuClick={() => setIsMobileSidebarOpen(true)}
+        onUserClick={() => handleNavigate('WINDOW_12')}
+      />
+      <BottomNav currentWindow={currentWindow} onNavigate={handleNavigate} language={language} />
       <CompanyPreview company={selectedCompany} onClose={handleClosePreview} language={language} />
 
       <main
-        className="content"
+        className="content desktop-only"
         style={{
           marginLeft: '328px',
           marginTop: '80px',
@@ -450,6 +752,68 @@ function App() {
 
         <Footer />
       </main>
+
+      <div className="mobile-only" style={{ padding: '16px' }}>
+        <div style={{
+          fontSize: '24px',
+          fontWeight: 700,
+          marginBottom: '24px',
+          color: 'var(--text-primary)'
+        }}>
+          {language === 'EN' ? 'Welcome' : 'Bienvenido'}, {userName}
+        </div>
+
+        <div style={{ marginBottom: '24px' }}>
+          {demoCompanies.map((company, idx) => (
+            <div
+              key={idx}
+              className="mobile-card"
+              onClick={() => handleCompanyClick(company)}
+            >
+              <div className="mobile-card-header">
+                <div>
+                  <div className="mobile-card-title">{company.name}</div>
+                  <div className="mobile-card-subtitle">{company.id}</div>
+                </div>
+                <span className={`mobile-badge mobile-badge-${company.status === 'Active' ? 'success' : 'warning'}`}>
+                  {company.status}
+                </span>
+              </div>
+              <div className="mobile-card-body">
+                <div className="mobile-card-row">
+                  <span className="mobile-card-label">{language === 'EN' ? 'Type' : 'Tipo'}</span>
+                  <span className="mobile-card-value">{company.productType}</span>
+                </div>
+                <div className="mobile-card-row">
+                  <span className="mobile-card-label">{language === 'EN' ? 'Messages' : 'Mensajes'}</span>
+                  <span className="mobile-card-value">{company.totalMessages}</span>
+                </div>
+                <div className="mobile-card-row">
+                  <span className="mobile-card-label">{language === 'EN' ? 'Channels' : 'Canales'}</span>
+                  <span className="mobile-card-value">{company.channels.join(', ')}</span>
+                </div>
+                <div className="mobile-card-row">
+                  <span className="mobile-card-label">{language === 'EN' ? 'Subscription' : 'Suscripción'}</span>
+                  <span className="mobile-card-value">{company.subscriptionEnds}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <TimeFilter selected={timeRange} onChange={setTimeRange} />
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '24px' }}>
+          <RevenueChannelsChart />
+          <DialogsSentReceivedChart />
+          <ByChannelChart />
+          <ClientTypesChart />
+          <ByCompanyChart />
+          <AnsweredMissedChart />
+          <AvgResponseChart />
+          <ClientTypeBarChart />
+        </div>
+      </div>
     </div>
   );
 }
