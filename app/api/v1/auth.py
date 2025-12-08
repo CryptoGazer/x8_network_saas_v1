@@ -13,9 +13,10 @@ from app.schemas.auth import (
 )
 from app.schemas.user import User as UserSchema
 from app.services.auth import authenticate_user, create_user, generate_tokens, refresh_access_token
-from app.services.email import create_verification_code, verify_code, send_verification_email
+from app.services.email import create_verification_code, verify_code, send_verification_email, send_password_reset_email
 from app.core.deps import get_current_user
 from app.models.user import User
+from app.core.security import get_password_hash
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -170,3 +171,99 @@ async def logout(current_user: User = Depends(get_current_user)):
         "message": "Successfully logged out",
         "detail": "Please remove tokens from client storage"
     }
+
+
+@router.post("/request-password-reset", status_code=status.HTTP_200_OK)
+async def request_password_reset(
+    request: SendVerificationCodeRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Step 1 of password reset: Send reset code to email.
+    """
+    # Check if email exists
+    result = await db.execute(select(User).where(User.email == request.email))
+    user = result.scalar_one_or_none()
+
+    # Always return success to prevent email enumeration attacks
+    # But only send email if user exists
+    if user:
+        # Generate and send reset code
+        code = await create_verification_code(db, request.email)
+        await send_password_reset_email(request.email, code)
+
+    return {
+        "message": "If the email exists, a password reset code has been sent",
+        "email": request.email
+    }
+
+
+@router.post("/verify-reset-code", status_code=status.HTTP_200_OK)
+async def verify_reset_code(
+    request: VerifyCodeRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Step 2 of password reset: Verify the reset code.
+    """
+    # Check if email exists
+    result = await db.execute(select(User).where(User.email == request.email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid email"
+        )
+
+    # Verify code
+    is_valid = await verify_code(db, request.email, request.code)
+
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset code"
+        )
+
+    return {
+        "message": "Reset code verified successfully",
+        "email": request.email
+    }
+
+
+@router.post("/reset-password", response_model=Token, status_code=status.HTTP_200_OK)
+async def reset_password(
+    email: str,
+    code: str,
+    new_password: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Step 3 of password reset: Reset password with verified code.
+    """
+    # Check if email exists
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid email"
+        )
+
+    # Verify code one more time
+    is_valid = await verify_code(db, email, code)
+
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset code"
+        )
+
+    # Update password
+    user.hashed_password = get_password_hash(new_password)
+    await db.commit()
+
+    # Generate new tokens and return
+    tokens = generate_tokens(user.id)
+    return tokens

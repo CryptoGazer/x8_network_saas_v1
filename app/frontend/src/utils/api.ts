@@ -124,6 +124,60 @@ class ApiClient {
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('isAuthenticated');
   }
+
+  async requestPasswordReset(email: string): Promise<{ message: string; email: string }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/auth/request-password-reset`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to send reset code');
+    }
+
+    return await response.json();
+  }
+
+  async verifyResetCode(email: string, code: string): Promise<{ message: string; email: string }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/auth/verify-reset-code`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, code }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Invalid or expired reset code');
+    }
+
+    return await response.json();
+  }
+
+  async resetPassword(email: string, code: string, newPassword: string): Promise<TokenResponse> {
+    const response = await fetch(`${this.baseUrl}/api/v1/auth/reset-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, code, new_password: newPassword }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to reset password');
+    }
+
+    const data: TokenResponse = await response.json();
+    localStorage.setItem('access_token', data.access_token);
+    localStorage.setItem('refresh_token', data.refresh_token);
+    return data;
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);

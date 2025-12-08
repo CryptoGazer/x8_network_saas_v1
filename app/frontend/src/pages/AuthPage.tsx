@@ -11,12 +11,17 @@ export default function AuthPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>('signin');
-  const { login, register, loginWithOAuth } = useAuth();
+  const [resetStep, setResetStep] = useState<'email' | 'code' | 'password'>('email');
+  const [resetCode, setResetCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const { login, register, loginWithOAuth, requestPasswordReset, verifyResetCode, resetPassword } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage('');
     setLoading(true);
 
     try {
@@ -33,7 +38,36 @@ export default function AuthPage() {
           setError('Registration failed. Email may already be registered.');
         }
       } else if (mode === 'reset') {
-        setError('Password reset not yet implemented');
+        if (resetStep === 'email') {
+          const success = await requestPasswordReset(email);
+          if (success) {
+            setSuccessMessage('Reset code sent to your email. Check your inbox!');
+            setResetStep('code');
+          } else {
+            setError('Failed to send reset code. Please try again.');
+          }
+        } else if (resetStep === 'code') {
+          const success = await verifyResetCode(email, resetCode);
+          if (success) {
+            setSuccessMessage('Code verified! Now enter your new password.');
+            setResetStep('password');
+          } else {
+            setError('Invalid or expired code. Please try again.');
+          }
+        } else if (resetStep === 'password') {
+          if (newPassword.length < 6) {
+            setError('Password must be at least 6 characters');
+            setLoading(false);
+            return;
+          }
+          const success = await resetPassword(email, resetCode, newPassword);
+          if (success) {
+            setSuccessMessage('Password reset successful! Redirecting...');
+            setTimeout(() => navigate('/'), 1500);
+          } else {
+            setError('Failed to reset password. Please try again.');
+          }
+        }
       } else {
         const success = await login(email, password);
         if (success) {
@@ -43,7 +77,7 @@ export default function AuthPage() {
         }
       }
     } catch (err) {
-      setError(mode === 'signup' ? 'Registration failed' : 'Login failed');
+      setError(mode === 'signup' ? 'Registration failed' : mode === 'reset' ? 'Reset failed' : 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -151,31 +185,51 @@ export default function AuthPage() {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <label className="text-sm font-light opacity-70 flex items-center space-x-2">
-                  <Mail className="w-4 h-4" strokeWidth={1} />
-                  <span>Email</span>
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 bg-black/20 border border-blue-400/20 rounded-xl focus:border-cyan-400/40 outline-none transition-all duration-300 font-light text-white"
-                  placeholder="your@email.com"
-                  required
-                />
-              </div>
+              {mode === 'reset' && resetStep === 'email' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-light opacity-70 flex items-center space-x-2">
+                    <Mail className="w-4 h-4" strokeWidth={1} />
+                    <span>Email</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-4 py-3 bg-black/20 border border-blue-400/20 rounded-xl focus:border-cyan-400/40 outline-none transition-all duration-300 font-light text-white"
+                    placeholder="your@email.com"
+                    required
+                  />
+                </div>
+              )}
 
-              {mode !== 'reset' && (
+              {mode === 'reset' && resetStep === 'code' && (
                 <div className="space-y-2">
                   <label className="text-sm font-light opacity-70 flex items-center space-x-2">
                     <Lock className="w-4 h-4" strokeWidth={1} />
-                    <span>Password</span>
+                    <span>Verification Code</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={resetCode}
+                    onChange={(e) => setResetCode(e.target.value)}
+                    className="w-full px-4 py-3 bg-black/20 border border-blue-400/20 rounded-xl focus:border-cyan-400/40 outline-none transition-all duration-300 font-light text-white text-center text-2xl tracking-widest"
+                    placeholder="Enter 6-digit code"
+                    required
+                    maxLength={6}
+                  />
+                </div>
+              )}
+
+              {mode === 'reset' && resetStep === 'password' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-light opacity-70 flex items-center space-x-2">
+                    <Lock className="w-4 h-4" strokeWidth={1} />
+                    <span>New Password</span>
                   </label>
                   <input
                     type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
                     className="w-full px-4 py-3 bg-black/20 border border-blue-400/20 rounded-xl focus:border-cyan-400/40 outline-none transition-all duration-300 font-light text-white"
                     placeholder="••••••••"
                     required
@@ -184,9 +238,50 @@ export default function AuthPage() {
                 </div>
               )}
 
+              {mode !== 'reset' && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-sm font-light opacity-70 flex items-center space-x-2">
+                      <Mail className="w-4 h-4" strokeWidth={1} />
+                      <span>Email</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full px-4 py-3 bg-black/20 border border-blue-400/20 rounded-xl focus:border-cyan-400/40 outline-none transition-all duration-300 font-light text-white"
+                      placeholder="your@email.com"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-light opacity-70 flex items-center space-x-2">
+                      <Lock className="w-4 h-4" strokeWidth={1} />
+                      <span>Password</span>
+                    </label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full px-4 py-3 bg-black/20 border border-blue-400/20 rounded-xl focus:border-cyan-400/40 outline-none transition-all duration-300 font-light text-white"
+                      placeholder="••••••••"
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                </>
+              )}
+
               {error && (
                 <div className="text-red-400 text-sm font-light text-center">
                   {error}
+                </div>
+              )}
+
+              {successMessage && (
+                <div className="text-green-400 text-sm font-light text-center">
+                  {successMessage}
                 </div>
               )}
 
@@ -202,7 +297,9 @@ export default function AuthPage() {
                     {loading && 'Processing...'}
                     {!loading && mode === 'signin' && 'Sign In'}
                     {!loading && mode === 'signup' && 'Sign Up'}
-                    {!loading && mode === 'reset' && 'Send Reset Link'}
+                    {!loading && mode === 'reset' && resetStep === 'email' && 'Send Reset Code'}
+                    {!loading && mode === 'reset' && resetStep === 'code' && 'Verify Code'}
+                    {!loading && mode === 'reset' && resetStep === 'password' && 'Reset Password'}
                   </span>
                   <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform duration-300" strokeWidth={1} />
                 </span>
@@ -252,7 +349,14 @@ export default function AuthPage() {
               )}
               {mode === 'reset' && (
                 <button
-                  onClick={() => setMode('signin')}
+                  onClick={() => {
+                    setMode('signin');
+                    setResetStep('email');
+                    setResetCode('');
+                    setNewPassword('');
+                    setError('');
+                    setSuccessMessage('');
+                  }}
                   type="button"
                   className="text-sm font-light text-cyan-400 hover:text-cyan-300 transition-colors duration-300"
                 >

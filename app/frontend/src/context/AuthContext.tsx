@@ -16,6 +16,9 @@ interface AuthContextType {
   register: (email: string, password: string, fullName: string) => Promise<boolean>;
   logout: () => void;
   loginWithOAuth: (provider: 'google' | 'apple' | 'facebook') => void;
+  requestPasswordReset: (email: string) => Promise<boolean>;
+  verifyResetCode: (email: string, code: string) => Promise<boolean>;
+  resetPassword: (email: string, code: string, newPassword: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -81,8 +84,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = `${backendUrl}/api/v1/oauth/${provider}/login`;
   };
 
+  const requestPasswordReset = async (email: string): Promise<boolean> => {
+    try {
+      await apiClient.requestPasswordReset(email);
+      return true;
+    } catch (error) {
+      console.error('Password reset request failed:', error);
+      return false;
+    }
+  };
+
+  const verifyResetCode = async (email: string, code: string): Promise<boolean> => {
+    try {
+      await apiClient.verifyResetCode(email, code);
+      return true;
+    } catch (error) {
+      console.error('Code verification failed:', error);
+      return false;
+    }
+  };
+
+  const resetPassword = async (email: string, code: string, newPassword: string): Promise<boolean> => {
+    try {
+      await apiClient.resetPassword(email, code, newPassword);
+      const userData = await apiClient.getCurrentUser();
+      setUser(userData);
+      localStorage.setItem('isAuthenticated', 'true');
+      return true;
+    } catch (error) {
+      console.error('Password reset failed:', error);
+      return false;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, loginWithOAuth }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, loginWithOAuth, requestPasswordReset, verifyResetCode, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );
