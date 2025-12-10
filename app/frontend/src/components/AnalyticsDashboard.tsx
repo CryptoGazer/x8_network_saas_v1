@@ -55,32 +55,15 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ language
   const [dateTo, setDateTo] = useState('2025-12-01');
   const [isLoading, setIsLoading] = useState(false);
 
-  const demoCompanies: CompanyData[] = [
-    {
-      id: 'PROD001',
-      name: 'Product Hotel Canarian',
-      status: 'Active',
-      type: 'Product',
-      channels: ['WhatsApp', 'Instagram'],
-      subscriptionEnds: '2025-12-01'
-    },
-    {
-      id: 'SERV001',
-      name: 'Service AI Agent',
-      status: 'Active',
-      type: 'Service',
-      channels: ['Facebook', 'Instagram', 'Gmail', 'Telegram'],
-      subscriptionEnds: '2025-12-10'
-    }
-  ];
+  const demoCompanies: CompanyData[] = [];
 
   const demoKPIs = {
-    totalMessages: 1780,
-    answered: 1691,
-    missed: 89,
-    avgResponse: '8s',
-    totalUnpaid: 8340,
-    totalPaid: 8400
+    totalMessages: 0,
+    answered: 0,
+    missed: 0,
+    avgResponse: '0s',
+    totalUnpaid: 0,
+    totalPaid: 0
   };
 
   useEffect(() => {

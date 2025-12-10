@@ -78,91 +78,14 @@ export const IntegrationsTokens: React.FC<IntegrationsTokensProps> = ({ language
     if (storedRows) {
       setRows(JSON.parse(storedRows));
     } else {
-      const sampleRows: IntegrationRow[] = [
-        {
-          table_name: 'DB Product Hotel',
-          shop_type: 'Hotel Canarian',
-          is_service: false,
-          table_id: '2aecab5ca619805289c8c84c',
-          whatsapp_number: '+358468029560',
-          whatsapp_phone_number: '796988216841416',
-          whatsapp_token: 'EAALZAYPZBnFZAsB...',
-          facebook_page_token: 'EAALZAYPZBnFZAsBP7BcA8...',
-          facebook_page_id: '900509626474227',
-          instagram_user_id: '17841478084433727',
-          telegram_username: '@ai_product_hotel',
-          telegram_business_token: 'MIpEfdVO2EjHFgAA8hfTqK5VrVc',
-          agent_email: 'antonpolfb@gmail.com',
-          telegram_invoices_chat_id: '-1003416651172',
-          telegram_invoices_token: '8553200600:AAGtu3...',
-          tiktok_user_id: '',
-          tiktok_access_token: '',
-          google_calendar_enabled: false,
-          google_calendar_integration_id: '',
-          google_calendar_api_token: '',
-          google_calendar_refresh_token: '',
-          google_calendar_primary_calendar_id: '',
-          google_calendar_sync_status: 'never',
-          activate: false,
-          activation_date: '',
-          activation_countdown: '',
-          project_link: '',
-          tariff_limit: 0,
-          channel_status: 'Missing token'
-        },
-        {
-          table_name: 'DB Service AIAgent',
-          shop_type: 'Our website',
-          is_service: true,
-          table_id: '2aecab5ca619803481a351e9',
-          whatsapp_number: '+358468028765',
-          whatsapp_phone_number: '873855089143036',
-          whatsapp_token: 'EAALZAYPZBnFZAsB...',
-          facebook_page_token: 'EAALZAYPZBnFZAsBP8xOFb...',
-          facebook_page_id: '891149194076826',
-          instagram_user_id: '17841478032245209',
-          telegram_username: '@ai_service_hotel',
-          telegram_business_token: 'ieM3jFx7lF0IBAAAQ71B18JQUXY',
-          agent_email: 'flowbillingn8n@gmail.com',
-          telegram_invoices_chat_id: '-1003184492789',
-          telegram_invoices_token: '8305349968:AAC9s...',
-          tiktok_user_id: '',
-          tiktok_access_token: '',
-          google_calendar_enabled: false,
-          google_calendar_integration_id: '',
-          google_calendar_api_token: '',
-          google_calendar_refresh_token: '',
-          google_calendar_primary_calendar_id: '',
-          google_calendar_sync_status: 'never',
-          activate: false,
-          activation_date: '',
-          activation_countdown: '',
-          project_link: '',
-          tariff_limit: 0,
-          channel_status: 'Missing token'
-        }
-      ];
-      setRows(sampleRows);
-      localStorage.setItem('integration_rows_v2', JSON.stringify(sampleRows));
+      setRows([]);
     }
 
     const storedRegistry = localStorage.getItem('integration_registry');
     if (storedRegistry) {
       setRegistry(JSON.parse(storedRegistry));
     } else {
-      const sampleRegistry: RegistryEntry[] = [
-        {
-          project: 'Demo Project',
-          channels_connected: ['WhatsApp', 'Facebook', 'Instagram', 'Telegram'],
-          date_activated: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          activation_completed: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-          number_of_channels: 4,
-          tariff_used: '4 channels',
-          who_activated: 'demo@example.com'
-        }
-      ];
-      setRegistry(sampleRegistry);
-      localStorage.setItem('integration_registry', JSON.stringify(sampleRegistry));
+      setRegistry([]);
     }
   }, []);
 

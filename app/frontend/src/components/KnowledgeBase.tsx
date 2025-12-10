@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Download, Image as ImageIcon, Play, Database, Check, X, AlertCircle } from 'lucide-react';
+import { Upload, Download, Image as ImageIcon, Play, Database, X, AlertCircle } from 'lucide-react';
 
 interface KnowledgeBaseProps {
   language: string;
@@ -86,10 +86,93 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
   const [registry, setRegistry] = useState<KBRegistryEntry[]>([]);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
-  const [showActivateModal, setShowActivateModal] = useState(false);
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [csvData, setCsvData] = useState<any[]>([]);
-  const [kbName, setKbName] = useState('');
+  const [isLoadingRegistry, setIsLoadingRegistry] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(false);
+
+  const fetchKBRegistry = async () => {
+    setIsLoadingRegistry(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const url = selectedCompany
+        ? `http://localhost:8000/api/v1/knowledge-base/list?company_name=${encodeURIComponent(selectedCompany)}`
+        : 'http://localhost:8000/api/v1/knowledge-base/list';
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.knowledge_bases) {
+        // Transform backend data to registry format
+        const transformedRegistry: KBRegistryEntry[] = result.knowledge_bases.map((kb: any) => ({
+          kb_id: kb.table_name,
+          kb_name: kb.table_name,
+          kb_type: kb.kb_type,
+          linked_company: kb.company_name,
+          total_rows: kb.row_count || 0,
+          media_count: 0,
+          activated_at: kb.created_at,
+          status: 'Activated'
+        }));
+
+        setRegistry(transformedRegistry);
+      } else {
+        throw new Error(result.detail || 'Failed to fetch KB registry');
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch KB registry:', error);
+      alert(language === 'EN'
+        ? `Failed to load knowledge bases: ${error.message}`
+        : `Error al cargar bases de conocimiento: ${error.message}`
+      );
+    } finally {
+      setIsLoadingRegistry(false);
+    }
+  };
+
+  const fetchKBData = async (tableName: string) => {
+    setIsLoadingData(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(
+        `http://localhost:8000/api/v1/knowledge-base/data/${tableName}?limit=100`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      const result = await response.json();
+
+      if (response.ok && result.data) {
+        // Set the rows based on KB type
+        const kbEntry = registry.find(r => r.kb_id === tableName);
+        if (kbEntry) {
+          if (kbEntry.kb_type === 'Product') {
+            setProductRows(result.data);
+          } else {
+            setServiceRows(result.data);
+          }
+        }
+      } else {
+        throw new Error(result.detail || 'Failed to fetch KB data');
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch KB data:', error);
+      alert(language === 'EN'
+        ? `Failed to load data: ${error.message}`
+        : `Error al cargar datos: ${error.message}`
+      );
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
 
   useEffect(() => {
     const storedCompanies = localStorage.getItem('companies');
@@ -101,27 +184,26 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
       })));
     }
 
-    const storedProductRows = localStorage.getItem('kb_product_rows');
-    if (storedProductRows) {
-      setProductRows(JSON.parse(storedProductRows));
-    } else {
-      setProductRows([]);
-    }
-
-    const storedServiceRows = localStorage.getItem('kb_service_rows');
-    if (storedServiceRows) {
-      setServiceRows(JSON.parse(storedServiceRows));
-    } else {
-      setServiceRows([]);
-    }
-
-    const storedRegistry = localStorage.getItem('kb_registry');
-    if (storedRegistry) {
-      setRegistry(JSON.parse(storedRegistry));
-    } else {
-      setRegistry([]);
-    }
+    // Fetch KB registry from backend on component mount
+    fetchKBRegistry();
   }, []);
+
+  // Fetch KB registry when selectedCompany changes
+  useEffect(() => {
+    fetchKBRegistry();
+  }, [selectedCompany]);
+
+  // Fetch KB data when registry updates or company changes
+  useEffect(() => {
+    if (selectedCompany && registry.length > 0) {
+      const companyKBs = registry.filter(r => r.linked_company === selectedCompany);
+
+      // Fetch data for each KB type if it exists
+      companyKBs.forEach(kb => {
+        fetchKBData(kb.kb_id);
+      });
+    }
+  }, [registry, selectedCompany]);
 
   const filteredCompanies = companies.filter(c =>
     kbType === 'Product' ? c.type === 'product' : c.type === 'service'
@@ -153,7 +235,6 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
       };
       const updated = [...productRows, newRow];
       setProductRows(updated);
-      localStorage.setItem('kb_product_rows', JSON.stringify(updated));
     } else {
       const newRow: ServiceRow = {
         service_no: `RSR-SERV-${String(serviceRows.length + 12).padStart(3, '0')}`,
@@ -188,7 +269,6 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
       };
       const updated = [...serviceRows, newRow];
       setServiceRows(updated);
-      localStorage.setItem('kb_service_rows', JSON.stringify(updated));
     }
   };
 
@@ -196,11 +276,9 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
     if (kbType === 'Product') {
       const updated = productRows.filter((_, i) => i !== index);
       setProductRows(updated);
-      localStorage.setItem('kb_product_rows', JSON.stringify(updated));
     } else {
       const updated = serviceRows.filter((_, i) => i !== index);
       setServiceRows(updated);
-      localStorage.setItem('kb_service_rows', JSON.stringify(updated));
     }
   };
 
@@ -234,72 +312,91 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
     input.click();
   };
 
-  const confirmImport = () => {
-    if (kbType === 'Product') {
-      const newRows: ProductRow[] = csvData.map(row => ({
-        product_no: row.product_no || `RSR-PROD-${Date.now()}`,
-        product_name: row.product_name || '',
-        sku: row.sku || '',
-        description: row.description || '',
-        package_type: row.package_type || '',
-        cities: row.cities || '',
-        webpage_link: row.webpage_link || '',
-        product_image: row.product_image || '',
-        video_link: row.video_link || '',
-        price_a_eur: parseFloat(row.price_a_eur) || 0,
-        delivery_price_eur: parseFloat(row.delivery_price_eur) || 0,
-        sum_free_delivery_eur: parseFloat(row.sum_free_delivery_eur) || 0,
-        stock_actual: parseInt(row.stock_actual) || 0,
-        delivery_time_hours: parseInt(row.delivery_time_hours) || 0,
-        payment_reminder_days: parseInt(row.payment_reminder_days) || 0,
-        supplier_contact_details: row.supplier_contact_details || '',
-        supplier_company_services: row.supplier_company_services || '',
-        warehouse_physical_address: row.warehouse_physical_address || '',
-        is_active: row.is_active === 'true' || false,
-        last_updated: new Date().toISOString()
-      }));
-      const updated = [...productRows, ...newRows];
-      setProductRows(updated);
-      localStorage.setItem('kb_product_rows', JSON.stringify(updated));
-    } else {
-      const newRows: ServiceRow[] = csvData.map(row => ({
-        service_no: row.service_no || `RSR-SERV-${Date.now()}`,
-        service_name: row.service_name || '',
-        sku: row.sku || '',
-        service_subcategory: row.service_subcategory || '',
-        service_category: row.service_category || '',
-        unit: row.unit || '',
-        duration_hours: parseFloat(row.duration_hours) || 0,
-        format: row.format || '',
-        description: row.description || '',
-        included: row.included || '',
-        not_included: row.not_included || '',
-        what_guarantee: row.what_guarantee || '',
-        what_not_guarantee: row.what_not_guarantee || '',
-        suitable_for: row.suitable_for || '',
-        not_suitable_for: row.not_suitable_for || '',
-        specialist_initials: row.specialist_initials || '',
-        specialist_area: row.specialist_area || '',
-        webpage_link: row.webpage_link || '',
-        product_image: row.product_image || '',
-        video_link: row.video_link || '',
-        price_a_eur: parseFloat(row.price_a_eur) || 0,
-        payment_reminder_days: parseInt(row.payment_reminder_days) || 0,
-        stock_actual: parseInt(row.stock_actual) || 0,
-        location: row.location || '',
-        specialist_contacts: row.specialist_contacts || '',
-        company_name: row.company_name || '',
-        details: row.details || '',
-        is_active: row.is_active === 'true' || false,
-        last_updated: new Date().toISOString()
-      }));
-      const updated = [...serviceRows, ...newRows];
-      setServiceRows(updated);
-      localStorage.setItem('kb_service_rows', JSON.stringify(updated));
+  const confirmImport = async () => {
+    if (!csvData || csvData.length === 0) {
+      alert(language === 'EN' ? 'No data to upload' : 'No hay datos para cargar');
+      return;
     }
-    setShowImportModal(false);
-    setCsvData([]);
-    setCsvHeaders([]);
+
+    if (!selectedCompany) {
+      alert(language === 'EN' ? 'Please select a company' : 'Por favor selecciona una empresa');
+      return;
+    }
+
+    // Check if company already has this KB type
+    const existingKB = registry.find(
+      r => r.linked_company === selectedCompany && r.kb_type === kbType
+    );
+
+    if (existingKB) {
+      alert(language === 'EN'
+        ? `This company already has a ${kbType} knowledge base. Only one ${kbType} KB per company is allowed.`
+        : `Esta empresa ya tiene una base de conocimiento de ${kbType}. Solo se permite una KB de ${kbType} por empresa.`
+      );
+      return;
+    }
+
+    try {
+      // Convert csvData back to CSV format
+      const csvContent = [
+        csvHeaders.join(','),
+        ...csvData.map(row => csvHeaders.map(h => {
+          const value = row[h] || '';
+          // Escape values that contain commas or quotes
+          if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+            return `"${value.replace(/"/g, '""')}"`;
+          }
+          return value;
+        }).join(','))
+      ].join('\n');
+
+      // Create a Blob from the CSV content
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const file = new File([blob], `kb_${selectedCompany}_${kbType}.csv`, { type: 'text/csv' });
+
+      // Create FormData
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('company_name', selectedCompany);
+      formData.append('kb_type', kbType);
+
+      // Get auth token
+      const token = localStorage.getItem('access_token');
+
+      // Upload to backend
+      const response = await fetch('http://localhost:8000/api/v1/knowledge-base/upload-csv', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.detail || 'Upload failed');
+      }
+
+      alert(language === 'EN'
+        ? `Knowledge base created successfully! ${result.rows_imported} rows imported.`
+        : `¡Base de conocimiento creada exitosamente! ${result.rows_imported} filas importadas.`
+      );
+
+      // Refresh the registry
+      await fetchKBRegistry();
+
+      // Close modal and reset state
+      setShowImportModal(false);
+      setCsvData([]);
+      setCsvHeaders([]);
+
+    } catch (error: any) {
+      alert(language === 'EN'
+        ? `Failed to upload: ${error.message}`
+        : `Error al cargar: ${error.message}`
+      );
+    }
   };
 
   const handleExportCSV = () => {
@@ -351,73 +448,29 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
     setShowBulkUploadModal(false);
   };
 
-  const handleActivateKB = () => {
-    setShowActivateModal(true);
-  };
-
-  const confirmActivation = () => {
-    if (!selectedCompany) {
-      alert(language === 'EN' ? 'Please select a company' : 'Por favor seleccione una empresa');
-      return;
-    }
-
-    if (!kbName.trim()) {
-      alert(language === 'EN' ? 'Please enter a KB name' : 'Por favor ingrese un nombre de KB');
-      return;
-    }
-
-    const rows = kbType === 'Product' ? productRows : serviceRows;
-    const mediaCount = rows.filter(r =>
-      (kbType === 'Product' ? (r as ProductRow).product_image : (r as ServiceRow).product_image)
-    ).length;
-
-    const newEntry: KBRegistryEntry = {
-      kb_id: `KB-${Date.now()}`,
-      kb_name: kbName,
-      kb_type: kbType,
-      linked_company: selectedCompany,
-      total_rows: rows.length,
-      media_count: mediaCount,
-      activated_at: new Date().toISOString(),
-      status: 'Activated'
-    };
-
-    const updatedRegistry = [...registry, newEntry];
-    setRegistry(updatedRegistry);
-    localStorage.setItem('kb_registry', JSON.stringify(updatedRegistry));
-
-    if (kbType === 'Product') {
-      const activated = productRows.map(r => ({ ...r, is_active: true }));
-      setProductRows(activated);
-      localStorage.setItem('kb_product_rows', JSON.stringify(activated));
-    } else {
-      const activated = serviceRows.map(r => ({ ...r, is_active: true }));
-      setServiceRows(activated);
-      localStorage.setItem('kb_service_rows', JSON.stringify(activated));
-    }
-
-    setShowActivateModal(false);
-    setKbName('');
-  };
-
   const updateProductCell = (index: number, field: keyof ProductRow, value: any) => {
     const updated = [...productRows];
     updated[index] = { ...updated[index], [field]: value, last_updated: new Date().toISOString() };
     setProductRows(updated);
-    localStorage.setItem('kb_product_rows', JSON.stringify(updated));
   };
 
   const updateServiceCell = (index: number, field: keyof ServiceRow, value: any) => {
     const updated = [...serviceRows];
     updated[index] = { ...updated[index], [field]: value, last_updated: new Date().toISOString() };
     setServiceRows(updated);
-    localStorage.setItem('kb_service_rows', JSON.stringify(updated));
   };
 
   const currentRows = kbType === 'Product' ? productRows : serviceRows;
 
   return (
-    <div style={{ padding: '24px', maxWidth: '100%', margin: '0 auto' }}>
+    <>
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+      <div style={{ padding: '24px', maxWidth: '100%', margin: '0 auto' }}>
       <div style={{ marginBottom: '24px' }}>
         <button
           id="kb.back"
@@ -604,57 +657,97 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
               <span className="desktop-only">{language === 'EN' ? 'Bulk Media Upload' : 'Carga Masiva'}</span>
               <span className="mobile-only">{language === 'EN' ? 'Media' : 'Medios'}</span>
             </button>
-
-            <button
-              id="kb.activateAll"
-              onClick={handleActivateKB}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '10px 20px',
-                background: 'linear-gradient(135deg, var(--brand-cyan), var(--brand-teal))',
-                border: 'none',
-                borderRadius: '8px',
-                color: '#FFFFFF',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                flex: '1 1 auto',
-                minWidth: '140px',
-                justifyContent: 'center'
-              }}
-            >
-              <Check size={16} />
-              {language === 'EN' ? 'Activate KB' : 'Activar KB'}
-            </button>
           </div>
         </div>
       </div>
 
-      <div className="glass-card" style={{ padding: '0', marginBottom: '24px', borderRadius: '16px', overflowX: 'auto' }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>
-            DB {kbType} {language === 'EN' ? 'Hotel' : 'Hotel'}
-          </h2>
-          <button
-            onClick={handleAddRow}
-            style={{
-              padding: '6px 12px',
-              background: 'var(--bg-secondary)',
-              border: '1px solid var(--brand-cyan)',
-              borderRadius: '6px',
-              color: 'var(--brand-cyan)',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: 'pointer'
-            }}
-          >
-            + {language === 'EN' ? 'Add Row' : 'Añadir Fila'}
-          </button>
+      {/* Loading indicators */}
+      {(isLoadingRegistry || isLoadingData) && (
+        <div className="glass-card" style={{ padding: '32px', marginBottom: '24px', borderRadius: '16px', textAlign: 'center' }}>
+          <div style={{
+            display: 'inline-block',
+            width: '40px',
+            height: '40px',
+            border: '3px solid rgba(0, 212, 255, 0.1)',
+            borderTop: '3px solid var(--brand-cyan)',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            marginBottom: '16px'
+          }}></div>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+            {isLoadingRegistry
+              ? (language === 'EN' ? 'Loading knowledge bases...' : 'Cargando bases de conocimiento...')
+              : (language === 'EN' ? 'Loading data...' : 'Cargando datos...')
+            }
+          </p>
         </div>
+      )}
 
-        {kbType === 'Product' ? (
+      {/* Display message when no KB exists for selected company */}
+      {!isLoadingRegistry && !isLoadingData && selectedCompany && registry.filter(r => r.linked_company === selectedCompany).length === 0 && (
+        <div className="glass-card" style={{ padding: '32px', marginBottom: '24px', borderRadius: '16px', textAlign: 'center' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '16px' }}>
+            {language === 'EN'
+              ? `No knowledge base found for ${selectedCompany}. Upload a CSV to create one.`
+              : `No se encontró base de conocimiento para ${selectedCompany}. Sube un CSV para crear una.`
+            }
+          </p>
+        </div>
+      )}
+
+      {/* Display registry summary */}
+      {!isLoadingRegistry && registry.length > 0 && (
+        <div className="glass-card" style={{ padding: '20px', marginBottom: '24px', borderRadius: '16px' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>
+            {language === 'EN' ? 'Knowledge Base Registry' : 'Registro de Bases de Conocimiento'}
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+            {registry.map((entry) => (
+              <div key={entry.kb_id} style={{
+                padding: '12px',
+                background: 'var(--bg-secondary)',
+                borderRadius: '8px',
+                border: '1px solid var(--glass-border)'
+              }}>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--brand-cyan)', marginBottom: '4px' }}>
+                  {entry.kb_type}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  {entry.linked_company}
+                </div>
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                  {entry.total_rows} {language === 'EN' ? 'rows' : 'filas'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* {currentRows.length > 0 && (
+        <div className="glass-card" style={{ padding: '0', marginBottom: '24px', borderRadius: '16px', overflowX: 'auto' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>
+              {selectedCompany ? `${selectedCompany} - ${kbType}` : `DB ${kbType}`}
+            </h2>
+            <button
+              onClick={handleAddRow}
+              style={{
+                padding: '6px 12px',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--brand-cyan)',
+                borderRadius: '6px',
+                color: 'var(--brand-cyan)',
+                fontSize: '12px',
+                fontWeight: 500,
+                cursor: 'pointer'
+              }}
+            >
+              + {language === 'EN' ? 'Add Row' : 'Añadir Fila'}
+            </button>
+          </div> */}
+
+        {/* {kbType === 'Product' ? (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
             <thead>
               <tr style={{ background: 'var(--bg-secondary)' }}>
@@ -886,9 +979,11 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
               ))}
             </tbody>
           </table>
-        )}
-      </div>
+        )} */}
+      {/* </div> */}
+{/* )} */}
 
+      {/* {registry.length > 0 && (
       <div id="kb.registry" className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>
         <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Database size={20} />
@@ -958,6 +1053,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
           </table>
         )}
       </div>
+      )} */}
 
       {showImportModal && (
         <div style={{
@@ -1095,93 +1191,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
           </div>
         </div>
       )}
-
-      {showActivateModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.7)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }} onClick={() => setShowActivateModal(false)}>
-          <div className="glass-card" style={{ padding: '32px', maxWidth: '500px', width: '90%', borderRadius: '16px' }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
-              {language === 'EN' ? 'Activate Knowledge Base' : 'Activar Base de Conocimientos'}
-            </h3>
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
-                {language === 'EN' ? 'KB Name' : 'Nombre de KB'}
-              </label>
-              <input
-                type="text"
-                value={kbName}
-                onChange={(e) => setKbName(e.target.value)}
-                placeholder={language === 'EN' ? 'Enter KB name' : 'Ingrese nombre de KB'}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: '8px',
-                  color: 'var(--text-primary)',
-                  fontSize: '14px'
-                }}
-              />
-            </div>
-            <div style={{ padding: '16px', background: 'var(--bg-secondary)', borderRadius: '8px', marginBottom: '20px' }}>
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                <strong>{language === 'EN' ? 'Type:' : 'Tipo:'}</strong> {kbType}
-              </div>
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                <strong>{language === 'EN' ? 'Company:' : 'Empresa:'}</strong> {selectedCompany || (language === 'EN' ? 'None selected' : 'Ninguna seleccionada')}
-              </div>
-              <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                <strong>{language === 'EN' ? 'Total Rows:' : 'Total de Filas:'}</strong> {currentRows.length}
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={() => setShowActivateModal(false)}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  background: 'transparent',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: '8px',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 500
-                }}
-              >
-                {language === 'EN' ? 'Cancel' : 'Cancelar'}
-              </button>
-              <button
-                onClick={confirmActivation}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  background: 'linear-gradient(135deg, var(--brand-cyan), var(--brand-teal))',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#FFFFFF',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontSize: '14px'
-                }}
-              >
-                {language === 'EN' ? 'Activate' : 'Activar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 };

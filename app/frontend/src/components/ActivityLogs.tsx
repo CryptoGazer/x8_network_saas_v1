@@ -21,38 +21,15 @@ interface Message {
 }
 
 const demoContacts: Record<string, ConversationContact[]> = {
-  WhatsApp: [
-    { identifier: '+79859757194', lastMessage: 'Отлично, сколько стоит тур...', lastTimestamp: '2025-11-20T12:46:10', totalMessages: 42 },
-    { identifier: '+375295318034', lastMessage: 'Спасибо за информацию!', lastTimestamp: '2025-11-27T14:12:10', totalMessages: 12 }
-  ],
-  Telegram: [
-    { identifier: '@pavel_doomer', lastMessage: 'When can I pick up the car?', lastTimestamp: '2025-11-19T10:30:00', totalMessages: 8 },
-    { identifier: '@sunset_traveler', lastMessage: 'Amazing experience!', lastTimestamp: '2025-11-25T16:45:00', totalMessages: 15 }
-  ],
-  Instagram: [
-    { identifier: '@wellness_vibes', lastMessage: 'Thank you for the consultation', lastTimestamp: '2025-11-22T09:00:00', totalMessages: 5 },
-    { identifier: '@adventure_club', lastMessage: 'Diving course was great!', lastTimestamp: '2025-11-24T18:20:00', totalMessages: 22 }
-  ],
-  Facebook: [
-    { identifier: 'travelwithlena', lastMessage: 'Yoga retreat booking confirmed', lastTimestamp: '2025-11-18T11:00:00', totalMessages: 10 },
-    { identifier: 'peter_travel', lastMessage: 'Wine tasting was excellent', lastTimestamp: '2025-11-21T15:30:00', totalMessages: 7 }
-  ],
-  Gmail: [
-    { identifier: 'client@example.com', lastMessage: 'Surf lesson booking', lastTimestamp: '2025-11-21T10:00:00', totalMessages: 6 },
-    { identifier: 'anna.smith@gmail.com', lastMessage: 'Massage appointment', lastTimestamp: '2025-11-20T09:00:00', totalMessages: 4 }
-  ],
-  TikTok: [
-    { identifier: '@oceanlover', lastMessage: 'Kayak tour sounds fun!', lastTimestamp: '2025-11-23T14:00:00', totalMessages: 3 },
-    { identifier: '@fitjourney', lastMessage: 'Personal training session booked', lastTimestamp: '2025-11-26T08:30:00', totalMessages: 9 }
-  ]
+  WhatsApp: [],
+  Telegram: [],
+  Instagram: [],
+  Facebook: [],
+  Gmail: [],
+  TikTok: []
 };
 
-const demoConversation: Message[] = [
-  { timestamp: '2025-11-20T12:44:48', sender: '+79859757194', text: 'Я люблю кататься на велосипеде и люблю отель четыре звезды чтобы была хорошая эстетика...', type: 'incoming' },
-  { timestamp: '2025-11-20T12:45:06', sender: 'Agent', text: 'Для любителей велосипедных прогулок... могу предложить варианты в районе Los Gigantes на острове Tenerife...', type: 'outgoing' },
-  { timestamp: '2025-11-20T12:46:10', sender: '+79859757194', text: 'Отлично, сколько стоит тур и как забронировать?', type: 'incoming' },
-  { timestamp: '2025-11-20T12:47:03', sender: 'Agent', text: 'Ссылка на оплату: https://buy.stripe.com/test_WA1 — нажмите и оплатите, после пришлю детали.', type: 'outgoing' }
-];
+const demoConversation: Message[] = [];
 
 const purchaseColumns = {
   WhatsApp: ['id', 'payment_link_id', 'profile_name', 'first_message_sent', 'chat_id', 'instance_id', 'shop_type', 'purchase_date', 'order_status', 'total_sum', 'products_sum', 'delivery_sum', 'goods_bought', 'name', 'recipient_phone_number', 'city', 'delivery_address', 'payment_link_sent_at', 'payment_reminder_hours', 'payment_till', 'payment_received_at', 'payment_link', 'language', 'goods_bought_json', 'TEXT'],
@@ -64,30 +41,12 @@ const purchaseColumns = {
 };
 
 const demoPurchases: Record<string, any[]> = {
-  WhatsApp: [
-    { payment_link_id: 'plink_WA1', profile_name: 'John Doe', shop_type: 'Boat tour', purchase_date: '2025-11-22T12:30:00', order_status: 'paid', total_sum: 120, goods_bought: 'Private Boat Tour, 2h, 120 EUR', recipient_phone_number: '+351600000000', city: 'Marbella', payment_link_sent_at: '2025-11-22T13:00:00', payment_received_at: '2025-11-22T13:00:00', payment_link: 'https://buy.stripe.com/test_WA1', language: 'English', TEXT: 'https://docs.google.com/document/d/WA1_example/edit?usp=sharing' },
-    { payment_link_id: 'plink_WA2', profile_name: 'Alice Summers', shop_type: 'Paragliding', purchase_date: '2025-11-23T09:15:00', order_status: 'completed', total_sum: 180, goods_bought: 'Paragliding flight over Costa del Sol, 180 EUR', payment_link: 'https://buy.stripe.com/test_WA2', TEXT: 'https://docs.google.com/document/d/WA2_example/edit?usp=sharing' }
-  ],
-  Gmail: [
-    { payment_link_id: 'plink_GM1', client_email: 'client@example.com', shop_type: 'Surf Lessons', purchase_date: '2025-11-21T10:00:00', order_status: 'paid', total_sum: 85, goods_bought: 'Surf Lesson for beginners, 2h, 85 EUR', payment_link: 'https://buy.stripe.com/test_GM1', TEXT: 'https://docs.google.com/document/d/GM1_example/edit?usp=sharing' },
-    { payment_link_id: 'plink_GM2', client_email: 'anna.smith@gmail.com', shop_type: 'Massage service', purchase_date: '2025-11-20T09:00:00', order_status: 'succeeded', total_sum: 60, goods_bought: 'Relax massage, 1h, 60 EUR', payment_link: 'https://buy.stripe.com/test_GM2', TEXT: 'https://docs.google.com/document/d/GM2_example/edit?usp=sharing' }
-  ],
-  Facebook: [
-    { payment_link_id: 'plink_FB1', username: 'travelwithlena', shop_type: 'Yoga retreat', purchase_date: '2025-11-18', order_status: 'completed', total_sum: 220, payment_link: 'https://buy.stripe.com/test_FB1', TEXT: 'https://docs.google.com/document/d/FB1_example/edit?usp=sharing' },
-    { payment_link_id: 'plink_FB2', username: 'peter_travel', shop_type: 'Wine tasting', order_status: 'paid', total_sum: 55, payment_link: 'https://buy.stripe.com/test_FB2', TEXT: 'https://docs.google.com/document/d/FB2_example/edit?usp=sharing' }
-  ],
-  Instagram: [
-    { payment_link_id: 'plink_IG1', username: 'wellness_vibes', shop_type: 'Online Consultation', order_status: 'paid', total_sum: 49, payment_link: 'https://buy.stripe.com/test_IG1', TEXT: 'https://docs.google.com/document/d/IG1_example/edit?usp=sharing' },
-    { payment_link_id: 'plink_IG2', username: 'adventure_club', shop_type: 'Diving course', order_status: 'completed', total_sum: 320, payment_link: 'https://buy.stripe.com/test_IG2', TEXT: 'https://docs.google.com/document/d/IG2_example/edit?usp=sharing' }
-  ],
-  Telegram: [
-    { payment_link_id: 'plink_TG1', username: 'pavel_doomer', shop_type: 'Car rental', order_status: 'paid', total_sum: 130, payment_link: 'https://buy.stripe.com/test_TG1', TEXT: 'https://docs.google.com/document/d/TG1_example/edit?usp=sharing' },
-    { payment_link_id: 'plink_TG2', username: 'sunset_traveler', shop_type: 'Helicopter tour', order_status: 'completed', total_sum: 490, payment_link: 'https://buy.stripe.com/test_TG2', TEXT: 'https://docs.google.com/document/d/TG2_example/edit?usp=sharing' }
-  ],
-  TikTok: [
-    { id: 9001, payment_link_id: 'plink_TT1', username: '@oceanlover', shop_type: 'Kayak tour', order_status: 'paid', total_sum: 75, city: 'Tenerife', payment_link: 'https://buy.stripe.com/test_TT1', TEXT: 'https://docs.google.com/document/d/TT1_example/edit?usp=sharing' },
-    { id: 9002, payment_link_id: 'plink_TT2', username: '@fitjourney', shop_type: 'Personal Training', order_status: 'completed', total_sum: 150, city: 'Barcelona', payment_link: 'https://buy.stripe.com/test_TT2', TEXT: 'https://docs.google.com/document/d/TT2_example/edit?usp=sharing' }
-  ]
+  WhatsApp: [],
+  Gmail: [],
+  Facebook: [],
+  Instagram: [],
+  Telegram: [],
+  TikTok: []
 };
 
 export const ActivityLogs: React.FC<ActivityLogsProps> = ({ language, onNavigate }) => {

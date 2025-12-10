@@ -50,217 +50,14 @@ export const ConversationCenter: React.FC<ConversationCenterProps> = ({ language
   const [selectedConversation, setSelectedConversation] = useState<PurchaseRow | null>(null);
   const [copiedText, setCopiedText] = useState('');
 
-  const demoCompanies: Company[] = [
-    { id: 'PROD001', name: 'Product Hotel Canarian', type: 'Product', status: 'Active', tariff: 'Single — €249/mo + Setup €199' },
-    { id: 'SERV001', name: 'Service AI Agent', type: 'Service', status: 'Active', tariff: 'Growth — €599/mo + Setup €399' }
-  ];
+  const demoCompanies: Company[] = [];
 
-  const whatsappPurchases: PurchaseRow[] = [
-    {
-      payment_link_id: 'plink_WA1',
-      contact: 'John Doe',
-      shop_type: 'Boat tour',
-      purchase_date: '2025-11-22T12:30:00.000+00:00',
-      conversation_start_date: '2025-11-22T10:15:00.000+00:00',
-      conversation_language: 'English',
-      origin_channel: 'WhatsApp',
-      order_status: 'paid',
-      total_sum: 120,
-      goods_bought: 'Private Boat Tour, 2h, 120 EUR',
-      city: 'Marbella',
-      payment_link: 'https://buy.stripe.com/test_WA1',
-      docs_link: 'https://docs.google.com/document/d/WA1_example/edit?usp=sharing',
-      client_type: 'Type3',
-      service_execution_date: '2025-12-08T14:00:00.000+00:00',
-      order_calendar_sync: 'auto',
-      synced_to_order_calendar: true,
-      order_calendar_id: 'oc_001'
-    },
-    {
-      payment_link_id: 'plink_WA2',
-      contact: 'Alice Summers',
-      shop_type: 'Paragliding',
-      purchase_date: '2025-11-23T09:15:00.000+00:00',
-      order_status: 'completed',
-      total_sum: 180,
-      goods_bought: 'Paragliding flight over Costa del Sol, 180 EUR',
-      city: 'Estepona',
-      payment_link: 'https://buy.stripe.com/test_WA2',
-      docs_link: 'https://docs.google.com/document/d/WA2_example/edit?usp=sharing',
-      client_type: 'Type3',
-      service_execution_date: '2025-12-12T10:00:00.000+00:00',
-      order_calendar_sync: 'auto',
-      synced_to_order_calendar: false
-    }
-  ];
-
-  const gmailPurchases: PurchaseRow[] = [
-    {
-      payment_link_id: 'plink_GM1',
-      contact: 'client@example.com',
-      shop_type: 'Surf Lessons',
-      purchase_date: '2025-11-21T10:00:00.000+00:00',
-      order_status: 'paid',
-      total_sum: 85,
-      goods_bought: 'Surf Lesson for beginners, 2h, 85 EUR',
-      city: 'Tenerife',
-      payment_link: 'https://buy.stripe.com/test_GM1',
-      docs_link: 'https://docs.google.com/document/d/GM1_example/edit?usp=sharing',
-      client_type: 'Type3',
-      service_execution_date: '2025-12-09T11:00:00.000+00:00',
-      order_calendar_sync: 'auto',
-      synced_to_order_calendar: true
-    },
-    {
-      payment_link_id: 'plink_GM2',
-      contact: 'anna.smith@gmail.com',
-      shop_type: 'Massage service',
-      purchase_date: '2025-11-20T09:00:00.000+00:00',
-      order_status: 'succeeded',
-      total_sum: 60,
-      goods_bought: 'Relax massage, 1h, 60 EUR',
-      city: 'Gran Canaria',
-      payment_link: 'https://buy.stripe.com/test_GM2',
-      docs_link: 'https://docs.google.com/document/d/GM2_example/edit?usp=sharing',
-      client_type: 'Type3',
-      service_execution_date: '2025-12-07T16:00:00.000+00:00',
-      order_calendar_sync: 'auto',
-      synced_to_order_calendar: false
-    }
-  ];
-
-  const facebookPurchases: PurchaseRow[] = [
-    {
-      payment_link_id: 'plink_FB1',
-      contact: 'travelwithlena',
-      shop_type: 'Yoga retreat',
-      order_status: 'completed',
-      total_sum: 220,
-      goods_bought: 'Yoga Retreat in Marbella, 2 days, 220 EUR',
-      city: 'Marbella',
-      payment_link: 'https://buy.stripe.com/test_FB1',
-      docs_link: 'https://docs.google.com/document/d/FB1_example/edit?usp=sharing',
-      client_type: 'Type3',
-      service_execution_date: '2025-12-20T08:00:00.000+00:00',
-      order_calendar_sync: 'auto',
-      synced_to_order_calendar: true
-    },
-    {
-      payment_link_id: 'plink_FB2',
-      contact: 'peter_travel',
-      shop_type: 'Wine tasting',
-      order_status: 'paid',
-      total_sum: 55,
-      goods_bought: 'Local Wine Tasting Tour, 55 EUR',
-      city: 'Malaga',
-      payment_link: 'https://buy.stripe.com/test_FB2',
-      docs_link: 'https://docs.google.com/document/d/FB2_example/edit?usp=sharing',
-      client_type: 'Type3',
-      service_execution_date: '2025-12-11T17:00:00.000+00:00',
-      order_calendar_sync: 'auto',
-      synced_to_order_calendar: false
-    }
-  ];
-
-  const instagramPurchases: PurchaseRow[] = [
-    {
-      payment_link_id: 'plink_IG1',
-      contact: 'wellness_vibes',
-      shop_type: 'Online Consultation',
-      order_status: 'paid',
-      total_sum: 49,
-      goods_bought: '1h Online Life Coaching, 49 EUR',
-      city: 'Online',
-      payment_link: 'https://buy.stripe.com/test_IG1',
-      docs_link: 'https://docs.google.com/document/d/IG1_example/edit?usp=sharing',
-      client_type: 'Type3',
-      service_execution_date: '2025-12-13T15:00:00.000+00:00',
-      order_calendar_sync: 'auto',
-      synced_to_order_calendar: true
-    },
-    {
-      payment_link_id: 'plink_IG2',
-      contact: 'adventure_club',
-      shop_type: 'Diving course',
-      order_status: 'completed',
-      total_sum: 320,
-      goods_bought: 'Advanced Diving Course, 2 days, 320 EUR',
-      city: 'Marbella',
-      payment_link: 'https://buy.stripe.com/test_IG2',
-      docs_link: 'https://docs.google.com/document/d/IG2_example/edit?usp=sharing',
-      client_type: 'Type3',
-      service_execution_date: '2025-12-15T09:00:00.000+00:00',
-      order_calendar_sync: 'auto',
-      synced_to_order_calendar: true,
-      order_calendar_id: 'oc_002'
-    }
-  ];
-
-  const telegramPurchases: PurchaseRow[] = [
-    {
-      payment_link_id: 'plink_TG1',
-      contact: 'pavel_doomer',
-      shop_type: 'Car rental',
-      order_status: 'paid',
-      total_sum: 130,
-      goods_bought: '1 Day Car Rental, 130 EUR',
-      city: 'Marbella',
-      payment_link: 'https://buy.stripe.com/test_TG1',
-      docs_link: 'https://docs.google.com/document/d/TG1_example/edit?usp=sharing',
-      client_type: 'Type3',
-      product_fulfillment_date: '2025-12-14T08:00:00.000+00:00',
-      order_calendar_sync: 'auto',
-      synced_to_order_calendar: false
-    },
-    {
-      payment_link_id: 'plink_TG2',
-      contact: 'sunset_traveler',
-      shop_type: 'Helicopter tour',
-      order_status: 'completed',
-      total_sum: 490,
-      goods_bought: 'Private Helicopter Tour, 490 EUR',
-      city: 'Seville',
-      payment_link: 'https://buy.stripe.com/test_TG2',
-      docs_link: 'https://docs.google.com/document/d/TG2_example/edit?usp=sharing',
-      client_type: 'Type3',
-      service_execution_date: '2025-12-16T12:00:00.000+00:00',
-      order_calendar_sync: 'auto',
-      synced_to_order_calendar: true
-    }
-  ];
-
-  const tiktokPurchases: PurchaseRow[] = [
-    {
-      payment_link_id: 'plink_TT1',
-      contact: '@oceanlover',
-      shop_type: 'Kayak tour',
-      order_status: 'paid',
-      total_sum: 75,
-      goods_bought: 'Kayak tour, 75 EUR',
-      city: 'Tenerife',
-      payment_link: 'https://buy.stripe.com/test_TT1',
-      docs_link: 'https://docs.google.com/document/d/TT1_example/edit?usp=sharing',
-      client_type: 'Type3',
-      service_execution_date: '2025-12-18T10:00:00.000+00:00',
-      order_calendar_sync: 'auto',
-      synced_to_order_calendar: false
-    },
-    {
-      payment_link_id: 'plink_TT2',
-      contact: '@fitjourney',
-      shop_type: 'Personal Training',
-      order_status: 'completed',
-      total_sum: 150,
-      goods_bought: 'Personal Training Session, 150 EUR',
-      city: 'Barcelona',
-      payment_link: 'https://buy.stripe.com/test_TT2',
-      docs_link: 'https://docs.google.com/document/d/TT2_example/edit?usp=sharing',
-      client_type: 'Type3',
-      service_execution_date: '2025-12-19T14:00:00.000+00:00',
-      order_calendar_sync: 'manual',
-      synced_to_order_calendar: false
-    }
-  ];
+  const whatsappPurchases: PurchaseRow[] = [];
+  const gmailPurchases: PurchaseRow[] = [];
+  const facebookPurchases: PurchaseRow[] = [];
+  const instagramPurchases: PurchaseRow[] = [];
+  const telegramPurchases: PurchaseRow[] = [];
+  const tiktokPurchases: PurchaseRow[] = [];
 
   const getCurrentPurchases = (): PurchaseRow[] => {
     if (activeTab === 'all') {
@@ -308,14 +105,14 @@ export const ConversationCenter: React.FC<ConversationCenterProps> = ({ language
     const type3Sum = allPurchases.filter(p => p.client_type === 'Type3').reduce((sum, p) => sum + p.total_sum, 0);
 
     return {
-      type1Count: type1 || 40,
-      type2Count: type2 || 50,
-      type3Count: type3 || 42,
-      type2Sum: type2Sum || 430,
-      type3Sum: type3Sum || 1539,
-      totalIncoming: 120,
-      totalOutgoing: 80,
-      avgResponse: 8
+      type1Count: type1,
+      type2Count: type2,
+      type3Count: type3,
+      type2Sum: type2Sum,
+      type3Sum: type3Sum,
+      totalIncoming: 0,
+      totalOutgoing: 0,
+      avgResponse: 0
     };
   }, [allPurchases]);
 

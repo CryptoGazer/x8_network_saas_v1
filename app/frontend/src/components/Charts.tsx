@@ -69,8 +69,8 @@ export const RevenueChannelsChart: React.FC = () => {
   };
 
   const series = [
-    { name: 'Revenue (EUR)', type: 'area', data: [1200, 2800, 1000, 3400] },
-    { name: 'Channels', type: 'line', data: [1, 2, 1, 4] }
+    { name: 'Revenue (EUR)', type: 'area', data: [] },
+    { name: 'Channels', type: 'line', data: [] }
   ];
 
   return (
@@ -141,8 +141,8 @@ export const DialogsSentReceivedChart: React.FC = () => {
   };
 
   const series = [
-    { name: 'Received', type: 'area', data: [320, 420, 520, 518] },
-    { name: 'Sent', type: 'line', data: [208, 273, 338, 337] }
+    { name: 'Received', type: 'area', data: [] },
+    { name: 'Sent', type: 'line', data: [] }
   ];
 
   return (
@@ -171,11 +171,11 @@ export const ByChannelChart: React.FC = () => {
   const themeMode = getChartThemeMode();
   const tooltipTheme = getChartTooltipTheme();
 
-  const total = 1780;
-  const whatsapp = Math.round(total * 0.57);
-  const instagram = Math.round(total * 0.25);
-  const gmail = Math.round(total * 0.12);
-  const others = total - whatsapp - instagram - gmail;
+  const total = 0;
+  const whatsapp = 0;
+  const instagram = 0;
+  const gmail = 0;
+  const others = 0;
 
   const options: ApexOptions = {
     chart: {
@@ -255,10 +255,10 @@ export const ClientTypesChart: React.FC = () => {
       formatter: function(seriesName, opts) {
         const val = opts.w.globals.series[opts.seriesIndex];
         if (seriesName === 'unpaid') {
-          return `${seriesName} — ${val} (€8,340)`;
+          return `${seriesName} — ${val} (€0)`;
         }
         if (seriesName === 'paid') {
-          return `${seriesName} — ${val} (€8,400)`;
+          return `${seriesName} — ${val} (€0)`;
         }
         return `${seriesName} — ${val}`;
       }
@@ -272,7 +272,7 @@ export const ClientTypesChart: React.FC = () => {
     }
   };
 
-  const series = [970, 460, 350];
+  const series = [0, 0, 0];
 
   return (
     <div id="chart.clientTypes" className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>
@@ -307,7 +307,7 @@ export const ByCompanyChart: React.FC = () => {
       fontFamily: 'inherit'
     },
     theme: { mode: themeMode },
-    labels: ['Product Hotel Canarian', 'Service AI Agent'],
+    labels: [],
     colors: ['#00D4FF', '#00B388'],
     legend: {
       labels: { colors: textColor },
@@ -330,7 +330,7 @@ export const ByCompanyChart: React.FC = () => {
               label: 'Total messages',
               fontSize: '14px',
               color: axisColor,
-              formatter: () => '1,780'
+              formatter: () => '0'
             }
           }
         }
@@ -338,7 +338,7 @@ export const ByCompanyChart: React.FC = () => {
     }
   };
 
-  const series = [500, 1280];
+  const series = [0, 0];
 
   return (
     <div id="chart.byCompany" className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>
@@ -388,7 +388,7 @@ export const AnsweredMissedChart: React.FC = () => {
     }
   };
 
-  const series = [1691, 89];
+  const series = [0, 0];
 
   return (
     <div id="chart.answeredMissed" className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>
@@ -440,7 +440,7 @@ export const AvgResponseChart: React.FC = () => {
             fontSize: '32px',
             color: '#00B388',
             fontWeight: 700,
-            formatter: () => '8s'
+            formatter: () => '0s'
           }
         }
       }
@@ -451,7 +451,7 @@ export const AvgResponseChart: React.FC = () => {
     labels: ['Avg Response']
   };
 
-  const series = [80];
+  const series = [0];
 
   return (
     <div id="chart.avgResponse" className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>
@@ -499,7 +499,7 @@ export const ClientTypeBarChart: React.FC = () => {
     dataLabels: {
       enabled: true,
       formatter: function(val, opts) {
-        const percentages = [54.5, 25.8, 19.7];
+        const percentages = [0, 0, 0];
         return percentages[opts.dataPointIndex] + '%';
       },
       offsetY: -20,
@@ -525,9 +525,9 @@ export const ClientTypeBarChart: React.FC = () => {
         formatter: function(val, opts) {
           const index = opts.dataPointIndex;
           if (index === 1) {
-            return `${val} (unpaid €8,340)`;
+            return `${val} (unpaid €0)`;
           } else if (index === 2) {
-            return `${val} (paid €8,400)`;
+            return `${val} (paid €0)`;
           }
           return val.toString();
         }
@@ -538,7 +538,7 @@ export const ClientTypeBarChart: React.FC = () => {
     }
   };
 
-  const series = [{ name: 'Count', data: [970, 460, 350] }];
+  const series = [{ name: 'Count', data: [0, 0, 0] }];
 
   return (
     <div id="chart.clientTypeBar" className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>

@@ -31,43 +31,9 @@ interface Company {
   type: string;
 }
 
-const demoDialogs: Dialog[] = [
-  {
-    id: 1,
-    dialogText: 'Client: Hi, I want to book a surf lesson\nAgent: Great! We have availability tomorrow at 10 AM. Would that work for you?\nClient: Perfect, how much is it?\nAgent: 85 EUR for a 2-hour beginner session.',
-    dialogQuality: 'good',
-    baseModel: 'gpt-4o-mini-2024-07-18',
-    sheetId: 'sheet_001',
-    activated: true,
-    activatedAt: '2025-11-20T10:00:00'
-  },
-  {
-    id: 2,
-    dialogText: 'Client: What services do you offer?\nAgent: Nothing.\nClient: ???',
-    dialogQuality: 'bad',
-    baseModel: 'gpt-4o-mini-2024',
-    sheetId: '',
-    activated: false,
-    activatedAt: ''
-  }
-];
+const demoDialogs: Dialog[] = [];
 
-const demoInstructions: Instruction[] = [
-  {
-    id: 1,
-    instructionText: 'Always greet customers warmly and professionally. Use their name if known.',
-    status: 'consider',
-    activated: true,
-    activatedAt: '2025-11-18T09:00:00'
-  },
-  {
-    id: 2,
-    instructionText: 'When closing a conversation, always thank the customer and offer future assistance.',
-    status: 'consider',
-    activated: false,
-    activatedAt: ''
-  }
-];
+const demoInstructions: Instruction[] = [];
 
 export const TrainingStudio: React.FC<TrainingStudioProps> = ({ language, onNavigate }) => {
   const [activeSection, setActiveSection] = useState<'dialogs' | 'instructions'>('dialogs');

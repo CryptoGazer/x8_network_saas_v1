@@ -15,6 +15,17 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, onLogout, language, 
     return savedTheme === 'light' ? 'LIGHT' : 'DARK';
   });
 
+  const handleLogoClick = () => {
+    const userRole = localStorage.getItem('user_role');
+    if (userRole === 'manager') {
+      onNavigate('WINDOW_MANAGER_DASHBOARD');
+    } else if (userRole === 'admin') {
+      onNavigate('WINDOW_ADMIN_DASHBOARD');
+    } else {
+      onNavigate('WINDOW_0');
+    }
+  };
+
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme-mode') || 'dark';
     const root = document.documentElement;
@@ -53,14 +64,17 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, onLogout, language, 
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center' }}>
-        <div style={{
-          fontSize: '24px',
-          fontWeight: 700,
-          background: 'linear-gradient(135deg, var(--brand-cyan), var(--brand-teal))',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text'
-        }}>
+        <div
+          onClick={handleLogoClick}
+          style={{
+            fontSize: '24px',
+            fontWeight: 700,
+            background: 'linear-gradient(135deg, var(--brand-cyan), var(--brand-teal))',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            cursor: 'pointer'
+          }}>
           x8work
         </div>
       </div>

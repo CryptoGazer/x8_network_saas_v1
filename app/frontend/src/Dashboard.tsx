@@ -31,40 +31,40 @@ import {
   ClientTypeBarChart
 } from './components/Charts';
 
-const demoCompanies: Company[] = [
-  {
-    id: 'SURF001',
-    name: 'Surf Group Lessons',
-    created: '2025-11-01',
-    productType: 'Service',
-    channels: ['WhatsApp', 'Instagram'],
-    totalMessages: 500,
-    type1: 350,
-    type2: 100,
-    type2Unpaid: 3450,
-    type3: 50,
-    type3Paid: 1420,
-    avgResponse: 8,
-    subscriptionEnds: '2025-12-01',
-    status: 'Active'
-  },
-  {
-    id: 'CONS002',
-    name: 'Consulting Services',
-    created: '2025-10-10',
-    productType: 'Service',
-    channels: ['Facebook', 'Instagram', 'Gmail', 'Telegram'],
-    totalMessages: 1280,
-    type1: 620,
-    type2: 360,
-    type2Unpaid: 4890,
-    type3: 300,
-    type3Paid: 6980,
-    avgResponse: 9,
-    subscriptionEnds: '2025-12-10',
-    status: 'Active'
-  }
-];
+// const demoCompanies: Company[] = [
+//   {
+//     id: 'SURF001',
+//     name: 'Surf Group Lessons',
+//     created: '2025-11-01',
+//     productType: 'Service',
+//     channels: ['WhatsApp', 'Instagram'],
+//     totalMessages: 500,
+//     type1: 350,
+//     type2: 100,
+//     type2Unpaid: 3450,
+//     type3: 50,
+//     type3Paid: 1420,
+//     avgResponse: 8,
+//     subscriptionEnds: '2025-12-01',
+//     status: 'Active'
+//   },
+//   {
+//     id: 'CONS002',
+//     name: 'Consulting Services',
+//     created: '2025-10-10',
+//     productType: 'Service',
+//     channels: ['Facebook', 'Instagram', 'Gmail', 'Telegram'],
+//     totalMessages: 1280,
+//     type1: 620,
+//     type2: 360,
+//     type2Unpaid: 4890,
+//     type3: 300,
+//     type3Paid: 6980,
+//     avgResponse: 9,
+//     subscriptionEnds: '2025-12-10',
+//     status: 'Active'
+//   }
+// ];
 
 function Dashboard() {
   const { logout, user } = useAuth();
@@ -340,9 +340,9 @@ function Dashboard() {
             <div>{language === 'EN' ? 'Sub. Ends' : 'Fin Sub.'}</div>
             <div>{language === 'EN' ? 'Status' : 'Estado'}</div>
           </div>
-          {demoCompanies.map((company, idx) => (
+          {/* {demoCompanies.map((company, idx) => (
             <CompanyCard key={idx} company={company} onClick={() => handleCompanyClick(company)} language={language} />
-          ))}
+          ))} */}
         </div>
         <TimeFilter selected={timeRange} onChange={setTimeRange} />
         <div id="charts.grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '32px' }}>
@@ -362,7 +362,7 @@ function Dashboard() {
           {language === 'EN' ? 'Welcome' : 'Bienvenido'}, {userName}
         </div>
         <div style={{ marginBottom: '24px' }}>
-          {demoCompanies.map((company, idx) => (
+          {/* {demoCompanies.map((company, idx) => (
             <div key={idx} className="mobile-card" onClick={() => handleCompanyClick(company)}>
               <div className="mobile-card-header">
                 <div>
@@ -392,7 +392,7 @@ function Dashboard() {
                 </div>
               </div>
             </div>
-          ))}
+          ))} */}
         </div>
         <TimeFilter selected={timeRange} onChange={setTimeRange} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '24px' }}>

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
-from app.api.v1 import auth, users, subscriptions, companies, managers, admin, oauth
+from app.api.v1 import auth, users, subscriptions, companies, managers, admin, oauth, knowledge_base
 from app.core.config import settings
 
 
@@ -36,6 +36,7 @@ app.include_router(companies.router)
 app.include_router(subscriptions.router)
 app.include_router(managers.router)
 app.include_router(admin.router)
+app.include_router(knowledge_base.router)
 
 
 @app.get("/")
