@@ -1,6 +1,26 @@
 import React from 'react';
 
-export const Footer: React.FC = () => {
+interface FooterProps {
+  language?: 'EN' | 'ES';
+}
+
+export const Footer: React.FC<FooterProps> = ({ language = 'EN' }) => {
+  const translations = {
+    en: {
+      tagline: 'Premium AI Sales Agent Platform',
+      privacyPolicy: 'Privacy Policy',
+      termsOfService: 'Terms of Service'
+    },
+    es: {
+      tagline: 'Plataforma Premium de Agente de Ventas con IA',
+      privacyPolicy: 'Política de Privacidad',
+      termsOfService: 'Términos de Servicio'
+    }
+  };
+
+  const lang = language.toLowerCase() as 'en' | 'es';
+  const t = translations[lang];
+
   return (
     <footer
       id="footer"
@@ -21,7 +41,7 @@ export const Footer: React.FC = () => {
           fontSize: '14px',
           color: 'var(--text-secondary)'
         }}>
-          Premium AI Sales Agent Platform
+          {t.tagline}
         </div>
 
         <div style={{
@@ -41,7 +61,7 @@ export const Footer: React.FC = () => {
             onMouseEnter={(e) => e.currentTarget.style.color = 'var(--brand-cyan)'}
             onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
           >
-            Private Policy
+            {t.privacyPolicy}
           </a>
           <a
             href="https://example.com/terms"
@@ -55,7 +75,7 @@ export const Footer: React.FC = () => {
             onMouseEnter={(e) => e.currentTarget.style.color = 'var(--brand-cyan)'}
             onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
           >
-            Terms of Service
+            {t.termsOfService}
           </a>
         </div>
       </div>

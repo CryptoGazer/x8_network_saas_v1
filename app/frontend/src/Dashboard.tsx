@@ -70,7 +70,11 @@ function Dashboard() {
   const { logout, user } = useAuth();
   const [currentWindow, setCurrentWindow] = useState('WINDOW_0');
   const [timeRange, setTimeRange] = useState<TimeRange>('All');
-  const [language, setLanguage] = useState('EN');
+  // Initialize language from localStorage, default to 'EN'
+  const [language, setLanguage] = useState<'EN' | 'ES'>(() => {
+    const savedLang = localStorage.getItem('user_lang');
+    return savedLang === 'es' ? 'ES' : 'EN';
+  });
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
@@ -302,11 +306,13 @@ function Dashboard() {
         <div style={{ marginLeft: '328px', marginTop: '80px', padding: '24px', flex: 1 }}>
           <div className="glass-card" style={{ padding: '48px', textAlign: 'center' }}>
             <h2 style={{ fontSize: '24px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
-              {currentWindow.replace('WINDOW_', 'Window ')}
+              {currentWindow.replace('WINDOW_', language === 'EN' ? 'Window ' : 'Ventana ')}
             </h2>
-            <p style={{ color: 'var(--text-secondary)' }}>This window is not yet implemented</p>
+            <p style={{ color: 'var(--text-secondary)' }}>
+              {language === 'EN' ? 'This window is not yet implemented' : 'Esta ventana aún no está implementada'}
+            </p>
             <button onClick={() => handleNavigate('WINDOW_0')} className="glass-card" style={{ marginTop: '24px', padding: '12px 24px', border: '1px solid var(--brand-cyan)', borderRadius: '8px', background: 'rgba(0, 212, 255, 0.15)', color: 'var(--brand-cyan)', cursor: 'pointer', fontWeight: 600 }}>
-              Back to Account Hub
+              {language === 'EN' ? 'Back to Account Hub' : 'Volver al Centro de Cuentas'}
             </button>
           </div>
         </div>
@@ -344,7 +350,7 @@ function Dashboard() {
             <CompanyCard key={idx} company={company} onClick={() => handleCompanyClick(company)} language={language} />
           ))} */}
         </div>
-        <TimeFilter selected={timeRange} onChange={setTimeRange} />
+        <TimeFilter selected={timeRange} onChange={setTimeRange} language={language} />
         <div id="charts.grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '32px' }}>
           <RevenueChannelsChart />
           <DialogsSentReceivedChart />
@@ -355,7 +361,7 @@ function Dashboard() {
           <AvgResponseChart />
           <ClientTypeBarChart />
         </div>
-        <Footer />
+        <Footer language={language} />
       </main>
       <div className="mobile-only" style={{ padding: '16px' }}>
         <div style={{ fontSize: '24px', fontWeight: 700, marginBottom: '24px', color: 'var(--text-primary)' }}>
@@ -394,7 +400,7 @@ function Dashboard() {
             </div>
           ))} */}
         </div>
-        <TimeFilter selected={timeRange} onChange={setTimeRange} />
+        <TimeFilter selected={timeRange} onChange={setTimeRange} language={language} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '24px' }}>
           <RevenueChannelsChart />
           <DialogsSentReceivedChart />

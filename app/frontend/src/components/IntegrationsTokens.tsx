@@ -74,19 +74,9 @@ export const IntegrationsTokens: React.FC<IntegrationsTokensProps> = ({ language
       setProjects(projectsList);
     }
 
-    const storedRows = localStorage.getItem('integration_rows_v2');
-    if (storedRows) {
-      setRows(JSON.parse(storedRows));
-    } else {
-      setRows([]);
-    }
-
-    const storedRegistry = localStorage.getItem('integration_registry');
-    if (storedRegistry) {
-      setRegistry(JSON.parse(storedRegistry));
-    } else {
-      setRegistry([]);
-    }
+    // Initialize with empty arrays - no mock data
+    setRows([]);
+    setRegistry([]);
   }, []);
 
   useEffect(() => {
@@ -514,7 +504,7 @@ export const IntegrationsTokens: React.FC<IntegrationsTokensProps> = ({ language
         </div>
       )}
 
-      <div className="glass-card" style={{ padding: '24px', borderRadius: '16px', marginBottom: '24px', overflowX: 'auto' }}>
+      {/* <div className="glass-card" style={{ padding: '24px', borderRadius: '16px', marginBottom: '24px', overflowX: 'auto' }}>
         <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
           {language === 'EN' ? 'Integration Table' : 'Tabla de Integraciones'}
         </h2>
@@ -559,7 +549,7 @@ export const IntegrationsTokens: React.FC<IntegrationsTokensProps> = ({ language
               {rows.map((row, idx) => (
                 <tr key={idx} style={{ borderBottom: '1px solid var(--glass-border)' }}>
                   <td style={{ padding: '10px 8px', fontWeight: 600, color: 'var(--text-primary)', position: 'sticky', left: 0, background: 'var(--bg-primary)', zIndex: 5 }}>
-                    <input
+                    <input  
                       type="text"
                       value={row.table_name}
                       onChange={(e) => updateRow(idx, 'table_name', e.target.value)}
@@ -1093,12 +1083,12 @@ export const IntegrationsTokens: React.FC<IntegrationsTokensProps> = ({ language
                       {row.channel_status}
                     </span>
                   </td>
-                </tr>
+                </tr> 
               ))}
             </tbody>
           </table>
         </div>
-      </div>
+      </div> */}
 
       <div className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>
         <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>

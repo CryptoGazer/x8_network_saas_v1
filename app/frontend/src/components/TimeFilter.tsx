@@ -5,11 +5,28 @@ export type TimeRange = '7 days' | '30 days' | 'All';
 interface TimeFilterProps {
   selected: TimeRange;
   onChange: (range: TimeRange) => void;
+  language?: 'EN' | 'ES';
 }
 
 const timeRanges: TimeRange[] = ['7 days', '30 days', 'All'];
 
-export const TimeFilter: React.FC<TimeFilterProps> = ({ selected, onChange }) => {
+export const TimeFilter: React.FC<TimeFilterProps> = ({ selected, onChange, language = 'EN' }) => {
+  const translations = {
+    en: {
+      '7 days': '7 days',
+      '30 days': '30 days',
+      'All': 'All'
+    },
+    es: {
+      '7 days': '7 días',
+      '30 days': '30 días',
+      'All': 'Todo'
+    }
+  };
+
+  const lang = language.toLowerCase() as 'en' | 'es';
+  const t = translations[lang];
+
   return (
     <div
       id="time.filter"
@@ -52,7 +69,7 @@ export const TimeFilter: React.FC<TimeFilterProps> = ({ selected, onChange }) =>
               }
             }}
           >
-            {range}
+            {t[range]}
           </button>
         );
       })}

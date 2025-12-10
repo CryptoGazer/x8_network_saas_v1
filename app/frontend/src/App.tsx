@@ -24,7 +24,11 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 function RoleBasedDashboard() {
   const { user, logout } = useAuth();
-  const [language, setLanguage] = useState('EN');
+  // Initialize language from localStorage, default to 'EN'
+  const [language, setLanguage] = useState(() => {
+    const savedLang = localStorage.getItem('user_lang');
+    return savedLang === 'es' ? 'ES' : 'EN';
+  });
 
   if (!user) {
     return <Navigate to="/auth" replace />;

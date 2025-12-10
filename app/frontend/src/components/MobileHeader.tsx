@@ -6,7 +6,7 @@ interface MobileHeaderProps {
   onMenuClick: () => void;
   onUserClick?: () => void;
   language: string;
-  onLanguageChange: (lang: string) => void;
+  onLanguageChange: (lang: 'EN' | 'ES') => void;
 }
 
 export const MobileHeader: React.FC<MobileHeaderProps> = ({

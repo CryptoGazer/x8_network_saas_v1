@@ -5,6 +5,11 @@ import { useAuth } from '../context/AuthContext';
 import NeuralBackground from '../components/NeuralBackground';
 
 export default function AuthPage() {
+  // Initialize language from localStorage, default to 'EN'
+  const [language, setLanguage] = useState(() => {
+    const savedLang = localStorage.getItem('user_lang');
+    return savedLang === 'es' ? 'ES' : 'EN';
+  });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -18,6 +23,107 @@ export default function AuthPage() {
   const { login, register, loginWithOAuth, requestPasswordReset, verifyResetCode, resetPassword, requestMagicLink } = useAuth();
   const navigate = useNavigate();
 
+  // Translation object
+  const t = {
+    en: {
+      nameRequired: 'Please enter your full name',
+      registrationFailed: 'Registration failed. Email may already be registered.',
+      resetCodeSent: 'Reset code sent to your email. Check your inbox!',
+      resetCodeFailed: 'Failed to send reset code. Please try again.',
+      codeVerified: 'Code verified! Now enter your new password.',
+      invalidCode: 'Invalid or expired code. Please try again.',
+      passwordMinLength: 'Password must be at least 6 characters',
+      passwordResetSuccess: 'Password reset successful! Redirecting...',
+      passwordResetFailed: 'Failed to reset password. Please try again.',
+      invalidCredentials: 'Invalid credentials',
+      registrationError: 'Registration failed',
+      resetError: 'Reset failed',
+      loginError: 'Login failed',
+      emailRequired: 'Please enter your email address',
+      magicLinkSent: 'Magic link sent! Check your email for the login link.',
+      magicLinkFailed: 'Failed to send magic link. Please try again.',
+      magicLinkError: 'Failed to send magic link',
+      welcomeBack: 'Welcome Back',
+      createAccount: 'Create Account',
+      resetPassword: 'Reset Password',
+      signInSubtitle: 'Sign in to access your dashboard',
+      signUpSubtitle: 'Sign up to get started',
+      resetSubtitle: 'Enter your email to reset password',
+      continueWithGoogle: 'Continue with Google',
+      continueWithFacebook: 'Continue with Facebook',
+      orContinueWithEmail: 'or continue with email',
+      fullName: 'Full Name',
+      email: 'Email',
+      password: 'Password',
+      verificationCode: 'Verification Code',
+      newPassword: 'New Password',
+      enterCodePlaceholder: 'Enter 6-digit code',
+      processing: 'Processing...',
+      signIn: 'Sign In',
+      signUp: 'Sign Up',
+      sendResetCode: 'Send Reset Code',
+      verifyCode: 'Verify Code',
+      resetPasswordBtn: 'Reset Password',
+      forgotPassword: 'Forgot password?',
+      noAccount: "Don't have an account?",
+      signUpLink: 'Sign up',
+      magicLink: 'Send me a magic link',
+      haveAccount: 'Already have an account?',
+      signInLink: 'Sign in',
+      backToSignIn: 'Back to sign in'
+    },
+    es: {
+      nameRequired: 'Por favor ingrese su nombre completo',
+      registrationFailed: 'Registro fallido. El correo puede estar ya registrado.',
+      resetCodeSent: '¡Código de restablecimiento enviado a su correo! Revise su bandeja de entrada.',
+      resetCodeFailed: 'Error al enviar el código. Por favor intente de nuevo.',
+      codeVerified: '¡Código verificado! Ahora ingrese su nueva contraseña.',
+      invalidCode: 'Código inválido o expirado. Por favor intente de nuevo.',
+      passwordMinLength: 'La contraseña debe tener al menos 6 caracteres',
+      passwordResetSuccess: '¡Contraseña restablecida con éxito! Redirigiendo...',
+      passwordResetFailed: 'Error al restablecer contraseña. Por favor intente de nuevo.',
+      invalidCredentials: 'Credenciales inválidas',
+      registrationError: 'Registro fallido',
+      resetError: 'Restablecimiento fallido',
+      loginError: 'Inicio de sesión fallido',
+      emailRequired: 'Por favor ingrese su dirección de correo',
+      magicLinkSent: '¡Enlace mágico enviado! Revise su correo para el enlace de inicio de sesión.',
+      magicLinkFailed: 'Error al enviar enlace mágico. Por favor intente de nuevo.',
+      magicLinkError: 'Error al enviar enlace mágico',
+      welcomeBack: 'Bienvenido de Nuevo',
+      createAccount: 'Crear Cuenta',
+      resetPassword: 'Restablecer Contraseña',
+      signInSubtitle: 'Inicie sesión para acceder a su panel',
+      signUpSubtitle: 'Regístrese para comenzar',
+      resetSubtitle: 'Ingrese su correo para restablecer contraseña',
+      continueWithGoogle: 'Continuar con Google',
+      continueWithFacebook: 'Continuar con Facebook',
+      orContinueWithEmail: 'o continuar con correo',
+      fullName: 'Nombre Completo',
+      email: 'Correo',
+      password: 'Contraseña',
+      verificationCode: 'Código de Verificación',
+      newPassword: 'Nueva Contraseña',
+      enterCodePlaceholder: 'Ingrese código de 6 dígitos',
+      processing: 'Procesando...',
+      signIn: 'Iniciar Sesión',
+      signUp: 'Registrarse',
+      sendResetCode: 'Enviar Código',
+      verifyCode: 'Verificar Código',
+      resetPasswordBtn: 'Restablecer Contraseña',
+      forgotPassword: '¿Olvidó su contraseña?',
+      noAccount: '¿No tiene cuenta?',
+      signUpLink: 'Regístrese',
+      magicLink: 'Enviarme un enlace mágico',
+      haveAccount: '¿Ya tiene cuenta?',
+      signInLink: 'Iniciar sesión',
+      backToSignIn: 'Volver a inicio de sesión'
+    }
+  };
+
+  const lang = language.toLowerCase() as 'en' | 'es';
+  const translations = t[lang];
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -27,7 +133,7 @@ export default function AuthPage() {
     try {
       if (mode === 'signup') {
         if (!fullName.trim()) {
-          setError('Please enter your full name');
+          setError(translations.nameRequired);
           setLoading(false);
           return;
         }
@@ -35,37 +141,37 @@ export default function AuthPage() {
         if (success) {
           navigate('/');
         } else {
-          setError('Registration failed. Email may already be registered.');
+          setError(translations.registrationFailed);
         }
       } else if (mode === 'reset') {
         if (resetStep === 'email') {
           const success = await requestPasswordReset(email);
           if (success) {
-            setSuccessMessage('Reset code sent to your email. Check your inbox!');
+            setSuccessMessage(translations.resetCodeSent);
             setResetStep('code');
           } else {
-            setError('Failed to send reset code. Please try again.');
+            setError(translations.resetCodeFailed);
           }
         } else if (resetStep === 'code') {
           const success = await verifyResetCode(email, resetCode);
           if (success) {
-            setSuccessMessage('Code verified! Now enter your new password.');
+            setSuccessMessage(translations.codeVerified);
             setResetStep('password');
           } else {
-            setError('Invalid or expired code. Please try again.');
+            setError(translations.invalidCode);
           }
         } else if (resetStep === 'password') {
           if (newPassword.length < 6) {
-            setError('Password must be at least 6 characters');
+            setError(translations.passwordMinLength);
             setLoading(false);
             return;
           }
           const success = await resetPassword(email, resetCode, newPassword);
           if (success) {
-            setSuccessMessage('Password reset successful! Redirecting...');
+            setSuccessMessage(translations.passwordResetSuccess);
             setTimeout(() => navigate('/'), 1500);
           } else {
-            setError('Failed to reset password. Please try again.');
+            setError(translations.passwordResetFailed);
           }
         }
       } else {
@@ -73,11 +179,11 @@ export default function AuthPage() {
         if (success) {
           navigate('/');
         } else {
-          setError('Invalid credentials');
+          setError(translations.invalidCredentials);
         }
       }
     } catch (err) {
-      setError(mode === 'signup' ? 'Registration failed' : mode === 'reset' ? 'Reset failed' : 'Login failed');
+      setError(mode === 'signup' ? translations.registrationError : mode === 'reset' ? translations.resetError : translations.loginError);
     } finally {
       setLoading(false);
     }
@@ -89,7 +195,7 @@ export default function AuthPage() {
 
   const handleMagicLink = async () => {
     if (!email) {
-      setError('Please enter your email address');
+      setError(translations.emailRequired);
       return;
     }
 
@@ -100,12 +206,12 @@ export default function AuthPage() {
     try {
       const success = await requestMagicLink(email);
       if (success) {
-        setSuccessMessage('Magic link sent! Check your email for the login link.');
+        setSuccessMessage(translations.magicLinkSent);
       } else {
-        setError('Failed to send magic link. Please try again.');
+        setError(translations.magicLinkFailed);
       }
     } catch (err) {
-      setError('Failed to send magic link');
+      setError(translations.magicLinkError);
     } finally {
       setLoading(false);
     }
@@ -127,15 +233,28 @@ export default function AuthPage() {
                   x8work
                 </span>
               </div>
+              {/* Language Toggle */}
+              <div className="flex justify-center mb-4">
+                <button
+                  onClick={() => {
+                    const newLang = language === 'EN' ? 'ES' : 'EN';
+                    setLanguage(newLang);
+                    localStorage.setItem('user_lang', newLang.toLowerCase());
+                  }}
+                  className="text-xs px-3 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
+                >
+                  {language === 'EN' ? 'ES' : 'EN'}
+                </button>
+              </div>
               <h1 className="text-2xl font-light tracking-tight mb-2">
-                {mode === 'signin' && 'Welcome Back'}
-                {mode === 'signup' && 'Create Account'}
-                {mode === 'reset' && 'Reset Password'}
+                {mode === 'signin' && translations.welcomeBack}
+                {mode === 'signup' && translations.createAccount}
+                {mode === 'reset' && translations.resetPassword}
               </h1>
               <p className="text-sm font-light opacity-60">
-                {mode === 'signin' && 'Sign in to access your dashboard'}
-                {mode === 'signup' && 'Sign up to get started'}
-                {mode === 'reset' && 'Enter your email to reset password'}
+                {mode === 'signin' && translations.signInSubtitle}
+                {mode === 'signup' && translations.signUpSubtitle}
+                {mode === 'reset' && translations.resetSubtitle}
               </p>
             </div>
 
@@ -152,7 +271,7 @@ export default function AuthPage() {
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                   </svg>
-                  <span>Continue with Google</span>
+                  <span>{translations.continueWithGoogle}</span>
                 </button>
 
                 <button
@@ -163,7 +282,7 @@ export default function AuthPage() {
                   <svg className="w-5 h-5" fill="#1877F2" viewBox="0 0 24 24">
                     <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                   </svg>
-                  <span>Continue with Facebook</span>
+                  <span>{translations.continueWithFacebook}</span>
                 </button>
 
                 <div className="relative my-6">
@@ -171,7 +290,7 @@ export default function AuthPage() {
                     <div className="w-full border-t border-blue-400/20"></div>
                   </div>
                   <div className="relative flex justify-center text-sm">
-                    <span className="px-4 bg-black/40 text-gray-400 font-light">or continue with email</span>
+                    <span className="px-4 bg-black/40 text-gray-400 font-light">{translations.orContinueWithEmail}</span>
                   </div>
                 </div>
               </div>
@@ -181,7 +300,7 @@ export default function AuthPage() {
               {mode === 'signup' && (
                 <div className="space-y-2">
                   <label className="text-sm font-light opacity-70 flex items-center space-x-2">
-                    <span>Full Name</span>
+                    <span>{translations.fullName}</span>
                   </label>
                   <input
                     type="text"
@@ -198,7 +317,7 @@ export default function AuthPage() {
                 <div className="space-y-2">
                   <label className="text-sm font-light opacity-70 flex items-center space-x-2">
                     <Mail className="w-4 h-4" strokeWidth={1} />
-                    <span>Email</span>
+                    <span>{translations.email}</span>
                   </label>
                   <input
                     type="email"
@@ -215,14 +334,14 @@ export default function AuthPage() {
                 <div className="space-y-2">
                   <label className="text-sm font-light opacity-70 flex items-center space-x-2">
                     <Lock className="w-4 h-4" strokeWidth={1} />
-                    <span>Verification Code</span>
+                    <span>{translations.verificationCode}</span>
                   </label>
                   <input
                     type="text"
                     value={resetCode}
                     onChange={(e) => setResetCode(e.target.value)}
                     className="w-full px-4 py-3 bg-black/20 border border-blue-400/20 rounded-xl focus:border-cyan-400/40 outline-none transition-all duration-300 font-light text-white text-center text-2xl tracking-widest"
-                    placeholder="Enter 6-digit code"
+                    placeholder={translations.enterCodePlaceholder}
                     required
                     maxLength={6}
                   />
@@ -233,7 +352,7 @@ export default function AuthPage() {
                 <div className="space-y-2">
                   <label className="text-sm font-light opacity-70 flex items-center space-x-2">
                     <Lock className="w-4 h-4" strokeWidth={1} />
-                    <span>New Password</span>
+                    <span>{translations.newPassword}</span>
                   </label>
                   <input
                     type="password"
@@ -252,7 +371,7 @@ export default function AuthPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-light opacity-70 flex items-center space-x-2">
                       <Mail className="w-4 h-4" strokeWidth={1} />
-                      <span>Email</span>
+                      <span>{translations.email}</span>
                     </label>
                     <input
                       type="email"
@@ -267,7 +386,7 @@ export default function AuthPage() {
                   <div className="space-y-2">
                     <label className="text-sm font-light opacity-70 flex items-center space-x-2">
                       <Lock className="w-4 h-4" strokeWidth={1} />
-                      <span>Password</span>
+                      <span>{translations.password}</span>
                     </label>
                     <input
                       type="password"
@@ -303,12 +422,12 @@ export default function AuthPage() {
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-cyan-400/40 group-hover/btn:border-cyan-400/60 rounded-full transition-all duration-500" />
                 <span className="relative text-lg font-light tracking-wide flex items-center justify-center space-x-2">
                   <span>
-                    {loading && 'Processing...'}
-                    {!loading && mode === 'signin' && 'Sign In'}
-                    {!loading && mode === 'signup' && 'Sign Up'}
-                    {!loading && mode === 'reset' && resetStep === 'email' && 'Send Reset Code'}
-                    {!loading && mode === 'reset' && resetStep === 'code' && 'Verify Code'}
-                    {!loading && mode === 'reset' && resetStep === 'password' && 'Reset Password'}
+                    {loading && translations.processing}
+                    {!loading && mode === 'signin' && translations.signIn}
+                    {!loading && mode === 'signup' && translations.signUp}
+                    {!loading && mode === 'reset' && resetStep === 'email' && translations.sendResetCode}
+                    {!loading && mode === 'reset' && resetStep === 'code' && translations.verifyCode}
+                    {!loading && mode === 'reset' && resetStep === 'password' && translations.resetPasswordBtn}
                   </span>
                   <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform duration-300" strokeWidth={1} />
                 </span>
@@ -328,10 +447,10 @@ export default function AuthPage() {
                     type="button"
                     className="text-sm font-light opacity-60 hover:opacity-100 transition-opacity duration-300"
                   >
-                    Forgot password?
+                    {translations.forgotPassword}
                   </button>
                   <div className="flex items-center justify-center space-x-2">
-                    <span className="text-sm font-light opacity-60">Don't have an account?</span>
+                    <span className="text-sm font-light opacity-60">{translations.noAccount}</span>
                     <button
                       onClick={() => {
                         setMode('signup');
@@ -341,7 +460,7 @@ export default function AuthPage() {
                       type="button"
                       className="text-sm font-light text-cyan-400 hover:text-cyan-300 transition-colors duration-300"
                     >
-                      Sign up
+                      {translations.signUpLink}
                     </button>
                   </div>
                   <button
@@ -349,13 +468,13 @@ export default function AuthPage() {
                     type="button"
                     className="text-sm font-light text-blue-400 hover:text-blue-300 transition-colors duration-300"
                   >
-                    Send me a magic link
+                    {translations.magicLink}
                   </button>
                 </>
               )}
               {mode === 'signup' && (
                 <div className="flex items-center justify-center space-x-2">
-                  <span className="text-sm font-light opacity-60">Already have an account?</span>
+                  <span className="text-sm font-light opacity-60">{translations.haveAccount}</span>
                   <button
                     onClick={() => {
                       setMode('signin');
@@ -365,7 +484,7 @@ export default function AuthPage() {
                     type="button"
                     className="text-sm font-light text-cyan-400 hover:text-cyan-300 transition-colors duration-300"
                   >
-                    Sign in
+                    {translations.signInLink}
                   </button>
                 </div>
               )}
@@ -382,7 +501,7 @@ export default function AuthPage() {
                   type="button"
                   className="text-sm font-light text-cyan-400 hover:text-cyan-300 transition-colors duration-300"
                 >
-                  Back to sign in
+                  {translations.backToSignIn}
                 </button>
               )}
             </div>

@@ -5,7 +5,7 @@ interface HeaderProps {
   onNavigate: (window: string) => void;
   onLogout: () => void;
   language: string;
-  onLanguageChange: (lang: string) => void;
+  onLanguageChange: (lang: 'EN' | 'ES') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ onNavigate, onLogout, language, onLanguageChange }) => {
