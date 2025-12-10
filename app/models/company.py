@@ -11,6 +11,11 @@ class ProductType(str, enum.Enum):
     BOTH = "Both"
 
 
+class CompanyType(str, enum.Enum):
+    PRODUCT = "product"
+    SERVICE = "service"
+
+
 class CompanyStatus(str, enum.Enum):
     ACTIVE = "Active"
     INACTIVE = "Inactive"
@@ -26,6 +31,7 @@ class Company(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     product_type = Column(SQLEnum(ProductType), default=ProductType.SERVICE)
+    company_type = Column(SQLEnum(CompanyType), nullable=False, default=CompanyType.PRODUCT)
     status = Column(SQLEnum(CompanyStatus), default=CompanyStatus.ACTIVE)
 
     total_messages = Column(Integer, default=0)

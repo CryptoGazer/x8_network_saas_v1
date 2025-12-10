@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:5175"
     BACKEND_URL: str = "http://localhost:8000"
 
+    # Supabase (for CSV/XLSX import data storage)
+    SUPABASE_URL: str = ""
+    SUPABASE_KEY: str = ""
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
+
     class Config:
         env_file = "app/.env"
         case_sensitive = True

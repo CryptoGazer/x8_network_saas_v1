@@ -307,6 +307,28 @@ class ApiClient {
 
     return await response.json();
   }
+
+  async createPaymentLink(planId: string): Promise<{
+    payment_link_url: string;
+    plan: string;
+    amount: number;
+    currency: string;
+  }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/subscriptions/create-payment-link?plan_id=${planId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeader(),
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to create payment link');
+    }
+
+    return await response.json();
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);

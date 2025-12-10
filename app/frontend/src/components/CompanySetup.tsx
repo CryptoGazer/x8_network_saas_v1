@@ -67,12 +67,38 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
       ]
     : basePlans;
 
+  const getMaxChannels = (planId: string): number => {
+    switch (planId) {
+      case 'single':
+        return 1;
+      case 'double':
+        return 2;
+      case 'growth':
+        return 5;
+      case 'special':
+        return 999; // Don't touch special offer
+      default:
+        return 1;
+    }
+  };
+
   const toggleChannel = (channelId: string) => {
-    setSelectedChannels(prev =>
-      prev.includes(channelId)
-        ? prev.filter(c => c !== channelId)
-        : [...prev, channelId]
-    );
+    setSelectedChannels(prev => {
+      const maxChannels = getMaxChannels(selectedPlan);
+
+      // If channel is already selected, deselect it
+      if (prev.includes(channelId)) {
+        return prev.filter(c => c !== channelId);
+      }
+
+      // If we haven't reached the max, select it
+      if (prev.length < maxChannels) {
+        return [...prev, channelId];
+      }
+
+      // Max channels reached, don't add
+      return prev;
+    });
   };
 
   const handleActivateCompany = () => {
@@ -253,12 +279,15 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
               {channels.map(channel => {
                 const Icon = channel.icon;
                 const isSelected = selectedChannels.includes(channel.id);
+                const maxChannels = getMaxChannels(selectedPlan);
+                const isDisabled = !isSelected && selectedChannels.length >= maxChannels;
                 return (
                   <button
                     key={channel.id}
                     data-channel={channel.id}
                     className="channel-icon"
                     onClick={() => toggleChannel(channel.id)}
+                    disabled={isDisabled}
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
@@ -269,18 +298,19 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
                       background: isSelected ? 'rgba(0, 212, 255, 0.15)' : 'var(--bg-secondary)',
                       border: isSelected ? '2px solid var(--brand-cyan)' : '1px solid var(--glass-border)',
                       borderRadius: '12px',
-                      cursor: 'pointer',
+                      cursor: isDisabled ? 'not-allowed' : 'pointer',
+                      opacity: isDisabled ? 0.5 : 1,
                       transition: 'all var(--transition-fast)',
                       position: 'relative'
                     }}
                     onMouseEnter={(e) => {
-                      if (!isSelected) {
+                      if (!isSelected && !isDisabled) {
                         e.currentTarget.style.borderColor = 'var(--brand-cyan)';
                         e.currentTarget.style.background = 'rgba(0, 212, 255, 0.05)';
                       }
                     }}
                     onMouseLeave={(e) => {
-                      if (!isSelected) {
+                      if (!isSelected && !isDisabled) {
                         e.currentTarget.style.borderColor = 'var(--glass-border)';
                         e.currentTarget.style.background = 'var(--bg-secondary)';
                       }

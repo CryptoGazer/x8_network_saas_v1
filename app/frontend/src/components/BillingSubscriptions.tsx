@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, Wallet, CheckCircle, XCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { apiClient } from '../utils/api';
 
 interface BillingSubscriptionsProps {
   language: string;
@@ -27,8 +29,8 @@ interface SpecialOfferConfig {
 }
 
 export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ language, onNavigate }) => {
+  const { user } = useAuth();
   const [showTopUpModal, setShowTopUpModal] = useState(false);
-  const [showCardModal, setShowCardModal] = useState(false);
   const [showManageSubscriptionModal, setShowManageSubscriptionModal] = useState(false);
   const [showActivateModal, setShowActivateModal] = useState(false);
   const [showSpecialOfferModal, setShowSpecialOfferModal] = useState(false);
@@ -54,28 +56,19 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
     }
   }, []);
 
-  const billingHistory: BillingHistoryRow[] = [
-    {
-      paymentId: 'PAY-001',
-      date: '31.10.2025',
-      description: 'Stripe charge — Product Hotel Canarian',
-      project: 'Product Hotel Canarian',
-      tariff: 'Single',
-      amount: '€448.00',
-      method: 'Visa ****4242',
-      status: 'Paid'
-    },
-    {
-      paymentId: 'PAY-002',
-      date: '09.10.2025',
-      description: 'Stripe charge — Service AI Agent',
-      project: 'Service AI Agent',
-      tariff: 'Growth',
-      amount: '€998.00',
-      method: 'Card ****1111',
-      status: 'Paid'
+  const billingHistory: BillingHistoryRow[] = [];
+
+  const handleActivatePlan = async (planId: string) => {
+    try {
+      const response = await apiClient.createPaymentLink(planId);
+      window.location.href = response.payment_link_url;
+    } catch (error) {
+      console.error('Failed to create payment link:', error);
+      alert(language === 'EN'
+        ? 'Failed to create payment link. Please try again or contact support.'
+        : 'Error al crear enlace de pago. Inténtelo de nuevo o contacte con soporte.');
     }
-  ];
+  };
 
   const scrollToBillingHistory = () => {
     const element = document.getElementById('billing.payments.history');
@@ -141,19 +134,19 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                 {language === 'EN' ? 'Wallet Balance' : 'Saldo de Cartera'}
               </div>
-              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--brand-cyan)' }}>€1,250.00</div>
+              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--brand-cyan)' }}>€0.00</div>
             </div>
             <div>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                 {language === 'EN' ? 'Active Projects' : 'Proyectos Activos'}
               </div>
-              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--success-green)' }}>2</div>
+              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--success-green)' }}>0</div>
             </div>
             <div>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                 {language === 'EN' ? 'Next Billing' : 'Próxima Facturación'}
               </div>
-              <div style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)' }}>01.12.2025</div>
+              <div style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)' }}>-</div>
             </div>
           </div>
           <div style={{ marginTop: '16px' }}>
@@ -177,44 +170,7 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
           </div>
         </div>
 
-        {/* 2. Payment Method Management */}
-        <div id="payment.method.management" className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
-            {language === 'EN' ? 'Payment Method Management' : 'Gestión de Métodos de Pago'}
-          </h2>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', background: 'var(--bg-secondary)', borderRadius: '8px', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <CreditCard size={32} color="var(--brand-cyan)" />
-              <div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>Visa ****4242</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  {language === 'EN' ? 'Next charge:' : 'Próximo cargo:'} 01.12.2025
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowCardModal(true)}
-              style={{
-                padding: '8px 16px',
-                background: 'transparent',
-                border: '1px solid var(--brand-cyan)',
-                borderRadius: '6px',
-                color: 'var(--brand-cyan)',
-                fontWeight: 500,
-                cursor: 'pointer',
-                fontSize: '13px',
-                transition: 'all var(--transition-fast)'
-              }}
-            >
-              {language === 'EN' ? 'Add / Change Card' : 'Agregar / Cambiar Tarjeta'}
-            </button>
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            {language === 'EN' ? 'Payments are securely processed through Stripe' : 'Los pagos se procesan de forma segura a través de Stripe'}
-          </div>
-        </div>
-
-        {/* 3. Profile Information */}
+        {/* 2. Profile Information */}
         <div id="profile.information" className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>
           <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
             {language === 'EN' ? 'Profile Information' : 'Información de Perfil'}
@@ -224,13 +180,13 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                 {language === 'EN' ? 'Account Email' : 'Correo de Cuenta'}
               </div>
-              <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>user@example.com</div>
+              <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{user?.email || '-'}</div>
             </div>
             <div>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                 {language === 'EN' ? 'Company Name' : 'Nombre de Empresa'}
               </div>
-              <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>x8work Agency</div>
+              <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>-</div>
             </div>
           </div>
         </div>
@@ -299,7 +255,7 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
                   {specialOffer.description}
                 </div>
                 <button
-                  onClick={() => setShowActivateModal(true)}
+                  onClick={() => handleActivatePlan('special')}
                   style={{
                     width: '100%',
                     padding: '10px',
@@ -336,7 +292,7 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
                 <li>Connect</li>
               </ul>
               <button
-                onClick={() => setShowActivateModal(true)}
+                onClick={() => handleActivatePlan('single')}
                 style={{
                   width: '100%',
                   padding: '10px',
@@ -372,7 +328,7 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
                 <li>Connect</li>
               </ul>
               <button
-                onClick={() => setShowActivateModal(true)}
+                onClick={() => handleActivatePlan('double')}
                 style={{
                   width: '100%',
                   padding: '10px',
@@ -398,7 +354,7 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
                 {language === 'EN' ? 'one-time setup: €399' : 'configuración única: €399'}
               </div>
               <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                {language === 'EN' ? '4 channels (example: WhatsApp, Gmail, Instagram, Facebook)' : '4 canales (ejemplo: WhatsApp, Gmail, Instagram, Facebook)'}
+                {language === 'EN' ? '5 channels (all available channels)' : '5 canales (todos los canales disponibles)'}
               </div>
               <ul style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px', paddingLeft: '20px', listStyle: 'disc' }}>
                 <li>{language === 'EN' ? '5,000 conversations' : '5,000 conversaciones'}</li>
@@ -407,7 +363,7 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
                 <li>Dashboard</li>
               </ul>
               <button
-                onClick={() => setShowActivateModal(true)}
+                onClick={() => handleActivatePlan('growth')}
                 style={{
                   width: '100%',
                   padding: '10px',
@@ -426,67 +382,22 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
           </div>
         </div>
 
-        {/* 5. Subscriptions Per Project */}
+        {/* 4. Subscriptions Per Project */}
         <div id="subscriptions.per.project" className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>
           <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
             {language === 'EN' ? 'Subscriptions Per Project' : 'Suscripciones por Proyecto'}
           </h2>
-          <div style={{ display: 'grid', gap: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
-              <div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>Product Hotel Canarian</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Single - €249/mo</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  {language === 'EN' ? 'Renews:' : 'Renueva:'} 01.12.2025
-                </span>
-                <button
-                  onClick={() => setShowManageSubscriptionModal(true)}
-                  style={{
-                    padding: '6px 12px',
-                    background: 'transparent',
-                    border: '1px solid var(--glass-border)',
-                    borderRadius: '6px',
-                    color: 'var(--text-primary)',
-                    fontSize: '12px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {language === 'EN' ? 'Manage Subscription' : 'Gestionar Suscripción'}
-                </button>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
-              <div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>Service AI Agent</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Growth - €599/mo</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  {language === 'EN' ? 'Renews:' : 'Renueva:'} 10.12.2025
-                </span>
-                <button
-                  onClick={() => setShowManageSubscriptionModal(true)}
-                  style={{
-                    padding: '6px 12px',
-                    background: 'transparent',
-                    border: '1px solid var(--glass-border)',
-                    borderRadius: '6px',
-                    color: 'var(--text-primary)',
-                    fontSize: '12px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {language === 'EN' ? 'Manage Subscription' : 'Gestionar Suscripción'}
-                </button>
-              </div>
-            </div>
+          <div style={{
+            textAlign: 'center',
+            padding: '48px 24px',
+            color: 'var(--text-muted)',
+            fontSize: '14px'
+          }}>
+            {language === 'EN' ? 'No active subscriptions yet' : 'No hay suscripciones activas aún'}
           </div>
         </div>
 
-        {/* 6. Billing & Payments (History) */}
+        {/* 5. Billing & Payments (History) */}
         <div id="billing.payments.history" className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)' }}>
@@ -509,7 +420,17 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
             </button>
           </div>
 
-          <div style={{ overflowX: 'auto' }}>
+          {billingHistory.length === 0 ? (
+            <div style={{
+              textAlign: 'center',
+              padding: '48px 24px',
+              color: 'var(--text-muted)',
+              fontSize: '14px'
+            }}>
+              {language === 'EN' ? 'No billing history yet' : 'No hay historial de facturación aún'}
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
@@ -584,6 +505,7 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
               </tbody>
             </table>
           </div>
+          )}
         </div>
       </div>
 
@@ -624,21 +546,8 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
                 }}
               />
             </div>
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
-                {language === 'EN' ? 'Payment Method' : 'Método de Pago'}
-              </label>
-              <select style={{
-                width: '100%',
-                padding: '12px',
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--glass-border)',
-                borderRadius: '8px',
-                color: 'var(--text-primary)',
-                fontSize: '14px'
-              }}>
-                <option>Visa ****4242</option>
-              </select>
+            <div style={{ marginBottom: '20px', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px', textAlign: 'center', color: 'var(--text-muted)' }}>
+              {language === 'EN' ? 'Payment method setup required' : 'Configuración de método de pago requerida'}
             </div>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
@@ -672,67 +581,6 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
                 }}
               >
                 {language === 'EN' ? 'Confirm' : 'Confirmar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Card Modal */}
-      {showCardModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.7)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }} onClick={() => setShowCardModal(false)}>
-          <div className="glass-card" style={{ padding: '32px', maxWidth: '450px', width: '90%', borderRadius: '16px' }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '20px' }}>
-              {language === 'EN' ? 'Add / Change Card' : 'Agregar / Cambiar Tarjeta'}
-            </h3>
-            <div style={{ marginBottom: '20px', padding: '60px 20px', background: 'var(--bg-secondary)', borderRadius: '8px', textAlign: 'center', color: 'var(--text-muted)', border: '1px dashed var(--glass-border)' }}>
-              <CreditCard size={40} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
-              <div style={{ fontSize: '13px' }}>Stripe Card Element</div>
-            </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={() => setShowCardModal(false)}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  background: 'transparent',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: '8px',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 500
-                }}
-              >
-                {language === 'EN' ? 'Cancel' : 'Cancelar'}
-              </button>
-              <button
-                onClick={() => setShowCardModal(false)}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  background: 'linear-gradient(135deg, var(--brand-cyan), var(--brand-teal))',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#FFFFFF',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontSize: '14px'
-                }}
-              >
-                {language === 'EN' ? 'Save Card' : 'Guardar Tarjeta'}
               </button>
             </div>
           </div>
@@ -780,7 +628,7 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                 {language === 'EN' ? 'Next billing date' : 'Próxima fecha de facturación'}
               </div>
-              <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 600 }}>01.12.2025</div>
+              <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 600 }}>-</div>
             </div>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
@@ -843,18 +691,17 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
               <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
                 {language === 'EN' ? 'Select Project' : 'Seleccionar Proyecto'}
               </label>
-              <select style={{
+              <div style={{
                 width: '100%',
                 padding: '12px',
                 background: 'var(--bg-secondary)',
                 border: '1px solid var(--glass-border)',
                 borderRadius: '8px',
-                color: 'var(--text-primary)',
+                color: 'var(--text-muted)',
                 fontSize: '14px'
               }}>
-                <option>Product Hotel Canarian</option>
-                <option>Service AI Agent</option>
-              </select>
+                {language === 'EN' ? 'No projects available' : 'No hay proyectos disponibles'}
+              </div>
             </div>
             <div style={{ marginBottom: '20px', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>

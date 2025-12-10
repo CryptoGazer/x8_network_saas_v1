@@ -37,6 +37,9 @@ class User(Base):
     # Manager assignment (for clients only)
     manager_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
+    # Stripe integration
+    stripe_customer_id = Column(String, nullable=True)
+
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
