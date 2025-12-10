@@ -56,39 +56,63 @@ class SupabaseService:
         """Convert a CSV row to match Product table schema."""
         converted = {}
 
-        # Generate external_id from SKU or product_name
-        if 'sku' in row and pd.notna(row['sku']):
-            converted['external_id'] = str(row['sku'])
-        elif 'product_name' in row and pd.notna(row['product_name']):
-            converted['external_id'] = re.sub(r'[^a-zA-Z0-9]+', '_', str(row['product_name']).lower())
-        else:
-            converted['external_id'] = f"product_{datetime.now().timestamp()}"
-
         # Map CSV columns to Product schema
+        # Handle various possible column name formats from CSV
         field_mapping = {
             'product_name': 'product_name',
+            'product name': 'product_name',
             'sku': 'sku',
             'description': 'description',
             'unit': 'unit',
+            'package_type': 'unit',
+            'package type': 'unit',
+            'webpage_link': 'website_url',
+            'webpage link': 'website_url',
             'website_url': 'website_url',
+            'product_image': 'image_url',
+            'product image': 'image_url',
             'image_url': 'image_url',
+            'video_link': 'video_url',
+            'video link': 'video_url',
             'video_url': 'video_url',
+            'price_a_(€)': 'price_eur',
+            'price a (€)': 'price_eur',
             'price_eur': 'price_eur',
+            'delivery_price_eur': 'logistics_price_eur',
             'logistics_price_eur': 'logistics_price_eur',
+            'sum_free_delivery_eur': 'free_delivery',
             'free_delivery': 'free_delivery',
+            'stock_actual': 'stock_units',
+            'stock actual': 'stock_units',
             'stock_units': 'stock_units',
             'delivery_time_hours': 'delivery_time_hours',
+            'delivery time hours': 'delivery_time_hours',
+            'payment_reminder_days': 'payment_reminder',
+            'payment reminder': 'payment_reminder',
             'payment_reminder': 'payment_reminder',
+            'supplier_contact_details': 'supplier_contact',
+            'supplier contact': 'supplier_contact',
             'supplier_contact': 'supplier_contact',
             'supplier_company_services': 'supplier_company_services',
+            'supplier company services': 'supplier_company_services',
+            'warehouse_physical_address': 'warehouse_address',
+            'warehouse address': 'warehouse_address',
             'warehouse_address': 'warehouse_address',
-            'price_id': 'price_id',
-            'delivery_id': 'delivery_id'
+            'cities': 'cities'
         }
 
-        for csv_col, db_col in field_mapping.items():
-            if csv_col in row and pd.notna(row[csv_col]):
-                value = row[csv_col]
+        # Process each row field
+        for csv_col, value in row.items():
+            # Skip Nº column and empty values
+            if csv_col.lower().strip() in ['nº', 'no', 'number', 'n°'] or pd.isna(value):
+                continue
+
+            # Normalize column name
+            normalized_col = csv_col.lower().strip()
+
+            # Get mapped database column name
+            if normalized_col in field_mapping:
+                db_col = field_mapping[normalized_col]
 
                 # Convert numeric fields
                 if db_col in ['price_eur', 'logistics_price_eur', 'free_delivery']:
@@ -101,24 +125,21 @@ class SupabaseService:
                         converted[db_col] = int(value) if value else None
                     except (ValueError, TypeError):
                         converted[db_col] = None
+                elif db_col == 'cities':
+                    # Handle cities as JSONB
+                    try:
+                        if isinstance(value, str):
+                            # Try to parse as JSON array
+                            converted['cities'] = json.loads(value)
+                        elif isinstance(value, list):
+                            converted['cities'] = value
+                        else:
+                            converted['cities'] = [str(value)]
+                    except json.JSONDecodeError:
+                        # If not JSON, split by comma
+                        converted['cities'] = [c.strip() for c in str(value).split(',')]
                 else:
                     converted[db_col] = str(value)
-
-        # Handle cities as JSONB
-        if 'cities' in row and pd.notna(row['cities']):
-            try:
-                if isinstance(row['cities'], str):
-                    # Try to parse as JSON array
-                    converted['cities'] = json.loads(row['cities'])
-                elif isinstance(row['cities'], list):
-                    converted['cities'] = row['cities']
-                else:
-                    converted['cities'] = [str(row['cities'])]
-            except json.JSONDecodeError:
-                # If not JSON, split by comma
-                converted['cities'] = [c.strip() for c in str(row['cities']).split(',')]
-        else:
-            converted['cities'] = []
 
         # Set source_updated_at
         converted['source_updated_at'] = datetime.now().isoformat()
@@ -129,18 +150,15 @@ class SupabaseService:
         """Convert a CSV row to match Service table schema."""
         converted = {}
 
-        # Generate external_id from SKU or product_name
-        if 'sku' in row and pd.notna(row['sku']):
-            converted['external_id'] = str(row['sku'])
-        elif 'product_name' in row and pd.notna(row['product_name']):
-            converted['external_id'] = re.sub(r'[^a-zA-Z0-9]+', '_', str(row['product_name']).lower())
-        else:
-            converted['external_id'] = f"service_{datetime.now().timestamp()}"
-
         # Map CSV columns to Service schema
+        # Using the actual CSV column names from your file
         field_mapping = {
+            'service name': 'product_name',
+            'service_name': 'product_name',
             'product_name': 'product_name',
+            'service subcategory': 'service_subcategory',
             'service_subcategory': 'service_subcategory',
+            'service category': 'service_category',
             'service_category': 'service_category',
             'sku': 'sku',
             'unit': 'unit',
@@ -148,30 +166,53 @@ class SupabaseService:
             'format': 'format',
             'description': 'description',
             'included': 'included',
+            'not included': 'not_included',
             'not_included': 'not_included',
+            'what guarantee': 'what_guarantee',
             'what_guarantee': 'what_guarantee',
+            'what not guarantee': 'what_not_guarantee',
             'what_not_guarantee': 'what_not_guarantee',
+            'suitable for': 'suitable_for',
             'suitable_for': 'suitable_for',
+            'not suitable for': 'not_suitable_for',
             'not_suitable_for': 'not_suitable_for',
+            'specialist initials': 'specialist_initials',
             'specialist_initials': 'specialist_initials',
+            'specialist area': 'specialist_area',
             'specialist_area': 'specialist_area',
+            'webpage link': 'website_url',
             'website_url': 'website_url',
+            'product image': 'image_url',
             'image_url': 'image_url',
+            'video link': 'video_url',
             'video_url': 'video_url',
+            'price a (€)': 'price_eur',
+            'price_a_(€)': 'price_eur',
             'price_eur': 'price_eur',
-            'stock_units': 'stock_units',
+            'payment reminder': 'payment_reminder',
             'payment_reminder': 'payment_reminder',
+            'stock actual': 'stock_units',
+            'stock_actual': 'stock_units',
+            'stock_units': 'stock_units',
             'location': 'location',
+            'specialist contacts': 'specialist_contacts',
             'specialist_contacts': 'specialist_contacts',
             'company': 'company',
-            'details': 'details',
-            'price_id': 'price_id',
-            'delivery_id': 'delivery_id'
+            'details': 'details'
         }
 
-        for csv_col, db_col in field_mapping.items():
-            if csv_col in row and pd.notna(row[csv_col]):
-                value = row[csv_col]
+        # Process each row, skipping Nº column
+        for csv_col, value in row.items():
+            # Skip Nº column and empty values
+            if csv_col.lower().strip() in ['nº', 'no', 'number', 'n°'] or pd.isna(value):
+                continue
+
+            # Normalize column name (lowercase, strip whitespace)
+            normalized_col = csv_col.lower().strip()
+
+            # Get mapped database column name
+            if normalized_col in field_mapping:
+                db_col = field_mapping[normalized_col]
 
                 # Convert numeric fields
                 if db_col in ['price_eur']:
@@ -228,12 +269,9 @@ class SupabaseService:
                 converted_row['source_table'] = table_name
                 records.append(converted_row)
 
-            # Step 3: Upsert data (by external_id)
+            # Step 3: Insert data (removed upsert since no external_id)
             if records:
-                response = self.client.table(table_name).upsert(
-                    records,
-                    on_conflict='external_id'
-                ).execute()
+                response = self.client.table(table_name).insert(records).execute()
 
             # Step 4: Register in kb_registry table
             registry_entry = {
