@@ -32,7 +32,7 @@ SUBSCRIPTION_PLANS = {
         "name": "Growth Plan",
         "amount": 4999,  # $49.99
         "currency": "usd",
-        "description": "5 channels (all available channels)"
+        "description": "6 channels (all available channels)"
     },
     "special": {
         "name": "Special Offer",

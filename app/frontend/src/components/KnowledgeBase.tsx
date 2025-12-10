@@ -105,99 +105,21 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
     if (storedProductRows) {
       setProductRows(JSON.parse(storedProductRows));
     } else {
-      const demoProduct: ProductRow = {
-        product_no: 'RSR-PROD-009',
-        product_name: 'Gourmet Canarian Set "Taste of Tenerife"',
-        sku: '333',
-        description: 'Gift box with mojo sauces (red & green), vacuumed wrinkled potatoes, Canarian honey, goat cheese, spices and recipes. Take the taste of Tenerife home!',
-        package_type: 'Set',
-        cities: '["Los Gigantes","Santa Cruz de Tenerife","Puerto de la Cruz"]',
-        webpage_link: 'https://www.royalsunresort.com/culinary-gifts',
-        product_image: 'https://res.cloudinary.com/dwhqflphd/image/upload/v1763381651/9_a2nfjy.png',
-        video_link: '',
-        price_a_eur: 54,
-        delivery_price_eur: 18,
-        sum_free_delivery_eur: 150,
-        stock_actual: 45,
-        delivery_time_hours: 48,
-        payment_reminder_days: 23,
-        supplier_contact_details: '+34 922 867 021, reservas@royalsunresort.com, Hotel Administration',
-        supplier_company_services: 'Royal Sun Resort - gastronomic souvenirs',
-        warehouse_physical_address: 'Royal Sun Resort',
-        is_active: false,
-        last_updated: new Date().toISOString()
-      };
-      setProductRows([demoProduct]);
-      localStorage.setItem('kb_product_rows', JSON.stringify([demoProduct]));
+      setProductRows([]);
     }
 
     const storedServiceRows = localStorage.getItem('kb_service_rows');
     if (storedServiceRows) {
       setServiceRows(JSON.parse(storedServiceRows));
     } else {
-      const demoService: ServiceRow = {
-        service_no: 'RSR-SERV-011',
-        service_name: 'Romantic Beach Dinner "Sunset Romance"',
-        sku: '11',
-        service_subcategory: 'Gastronomy / Romantic Dinner',
-        service_category: 'Special Events',
-        unit: 'Dinner',
-        duration_hours: 2.5,
-        format: 'On-site / Beach',
-        description: 'Private romantic dinner for two on the hotel\'s private beach. Candlelit table, 4-course menu by the chef, a bottle of Cava, live guitarist, optional fireworks (extra).',
-        included: 'Private table, decor (candles, petals, lanterns), 4-course menu, bottle of Cava DO, mineral water, 30-min live music, personal waiter',
-        not_included: 'Fireworks (150€), extra alcohol, photographer (available)',
-        what_guarantee: 'Romantic atmosphere, unforgettable evening, quality food, live music by the ocean',
-        what_not_guarantee: 'No guarantee in severe weather (we will move indoors), no guarantee of total privacy (other guests may be visible at distance)',
-        suitable_for: 'Couples, proposals, anniversaries, honeymoons',
-        not_suitable_for: 'Groups >2, children',
-        specialist_initials: 'Laura D.',
-        specialist_area: 'Event manager - romantic events, 9 years experience',
-        webpage_link: 'https://www.royalsunresort.com/romantic-dinner',
-        product_image: 'https://res.cloudinary.com/dwhqflphd/image/upload/v1763381690/11_uuusbt.jpg',
-        video_link: '',
-        price_a_eur: 320,
-        payment_reminder_days: 23,
-        stock_actual: 6,
-        location: 'Private beach Royal Sun Resort, Los Gigantes, Tenerife',
-        specialist_contacts: '+34 922 867 021, events@royalsunresort.com',
-        company_name: 'Royal Sun Resort - Special Events',
-        details: 'Book min 72h, inform dietary preferences, dinner starts at sunset (time to be confirmed)',
-        is_active: false,
-        last_updated: new Date().toISOString()
-      };
-      setServiceRows([demoService]);
-      localStorage.setItem('kb_service_rows', JSON.stringify([demoService]));
+      setServiceRows([]);
     }
 
     const storedRegistry = localStorage.getItem('kb_registry');
     if (storedRegistry) {
       setRegistry(JSON.parse(storedRegistry));
     } else {
-      const sampleRegistry: KBRegistryEntry[] = [
-        {
-          kb_id: 'KB-1733241600000',
-          kb_name: 'Royal Sun Resort Products - Culinary Collection',
-          kb_type: 'Product',
-          linked_company: 'Royal Sun Resort',
-          total_rows: 1,
-          media_count: 1,
-          activated_at: new Date('2024-12-03T10:00:00Z').toISOString(),
-          status: 'Activated'
-        },
-        {
-          kb_id: 'KB-1733328000000',
-          kb_name: 'Royal Sun Resort Services - Special Events',
-          kb_type: 'Service',
-          linked_company: 'Royal Sun Resort',
-          total_rows: 1,
-          media_count: 1,
-          activated_at: new Date('2024-12-04T09:00:00Z').toISOString(),
-          status: 'Activated'
-        }
-      ];
-      setRegistry(sampleRegistry);
-      localStorage.setItem('kb_registry', JSON.stringify(sampleRegistry));
+      setRegistry([]);
     }
   }, []);
 

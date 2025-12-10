@@ -354,10 +354,10 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
                 {language === 'EN' ? 'one-time setup: €399' : 'configuración única: €399'}
               </div>
               <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                {language === 'EN' ? '5 channels (all available channels)' : '5 canales (todos los canales disponibles)'}
+                {language === 'EN' ? '6 channels (all available channels)' : '6 canales (todos los canales disponibles)'}
               </div>
               <ul style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px', paddingLeft: '20px', listStyle: 'disc' }}>
-                <li>{language === 'EN' ? '5,000 conversations' : '5,000 conversaciones'}</li>
+                <li>{language === 'EN' ? '6,000 conversations' : '6,000 conversaciones'}</li>
                 <li>{language === 'EN' ? 'Full automation suite' : 'Suite completa de automatización'}</li>
                 <li>{language === 'EN' ? 'Exports & extended analytics' : 'Exportaciones y análisis extendido'}</li>
                 <li>Dashboard</li>
