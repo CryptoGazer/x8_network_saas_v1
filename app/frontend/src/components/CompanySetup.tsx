@@ -74,7 +74,7 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
       case 'double':
         return 2;
       case 'growth':
-        return 5;
+        return 6;
       case 'special':
         return 999; // Don't touch special offer
       default:
