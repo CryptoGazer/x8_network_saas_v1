@@ -214,6 +214,99 @@ class ApiClient {
     localStorage.setItem('refresh_token', data.refresh_token);
     return data;
   }
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/auth/change-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeader(),
+      },
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to change password');
+    }
+
+    return await response.json();
+  }
+
+  async getAllManagers(): Promise<UserResponse[]> {
+    const response = await fetch(`${this.baseUrl}/api/v1/admin/managers`, {
+      method: 'GET',
+      headers: {
+        ...this.getAuthHeader(),
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to fetch managers');
+    }
+
+    return await response.json();
+  }
+
+  async getMyClients(): Promise<UserResponse[]> {
+    const response = await fetch(`${this.baseUrl}/api/v1/managers/clients`, {
+      method: 'GET',
+      headers: {
+        ...this.getAuthHeader(),
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to fetch clients');
+    }
+
+    return await response.json();
+  }
+
+  async getAdminStats(): Promise<{
+    total_managers: number;
+    clients_with_subscription: number;
+    clients_on_trial: number;
+    trial_clients: Array<{ id: number; email: string; full_name: string; days_remaining: number }>;
+    paid_clients: Array<{ id: number; email: string; full_name: string; subscription_tier: string; days_until_renewal: number; renewal_date: string }>;
+  }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/admin/stats`, {
+      method: 'GET',
+      headers: {
+        ...this.getAuthHeader(),
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to fetch stats');
+    }
+
+    return await response.json();
+  }
+
+  async getManagerStats(): Promise<{
+    clients_with_subscription: number;
+    clients_on_trial: number;
+    trial_clients: Array<{ id: number; email: string; full_name: string; days_remaining: number }>;
+    paid_clients: Array<{ id: number; email: string; full_name: string; subscription_tier: string; days_until_renewal: number; renewal_date: string }>;
+  }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/managers/stats`, {
+      method: 'GET',
+      headers: {
+        ...this.getAuthHeader(),
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to fetch manager stats');
+    }
+
+    return await response.json();
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);

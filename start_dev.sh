@@ -23,7 +23,7 @@ echo "⏳ Waiting for backend to start..."
 sleep 3
 
 # Start frontend server
-echo "⚛️  Starting React frontend server on http://localhost:5173..."
+echo "⚛️  Starting React frontend server on http://localhost:5175..."
 cd app/frontend && npm run dev &
 FRONTEND_PID=$!
 

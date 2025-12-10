@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Eye, EyeOff, AlertTriangle, Check } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface ProfileSettingsProps {
   language: string;
@@ -21,6 +22,7 @@ interface LoginData {
 }
 
 export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language, onNavigate }) => {
+  const { changePassword } = useAuth();
   const [activeTab, setActiveTab] = useState<'profile' | 'settings'>('profile');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -28,6 +30,8 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language, onNa
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
   const [notificationPrefs, setNotificationPrefs] = useState({
     notif_billing: true,
     notif_new_leads: true,
@@ -74,23 +78,32 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language, onNa
     { device: 'Firefox on Mac', location: 'Barcelona, Spain', lastActive: '1 day ago', status: 'Active' }
   ];
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
+    setPasswordError('');
+    setPasswordSuccess('');
+
     if (!currentPassword || !newPassword || !confirmPassword) {
-      alert(language === 'EN' ? 'All fields are required' : 'Todos los campos son requeridos');
+      setPasswordError(language === 'EN' ? 'All fields are required' : 'Todos los campos son requeridos');
       return;
     }
     if (newPassword !== confirmPassword) {
-      alert(language === 'EN' ? 'New passwords do not match' : 'Las contraseñas nuevas no coinciden');
+      setPasswordError(language === 'EN' ? 'New passwords do not match' : 'Las contraseñas nuevas no coinciden');
       return;
     }
     if (newPassword.length < 8) {
-      alert(language === 'EN' ? 'Password must be at least 8 characters' : 'La contraseña debe tener al menos 8 caracteres');
+      setPasswordError(language === 'EN' ? 'Password must be at least 8 characters' : 'La contraseña debe tener al menos 8 caracteres');
       return;
     }
-    alert(language === 'EN' ? 'Password updated successfully' : 'Contraseña actualizada exitosamente');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+
+    const success = await changePassword(currentPassword, newPassword);
+    if (success) {
+      setPasswordSuccess(language === 'EN' ? 'Password updated successfully' : 'Contraseña actualizada exitosamente');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } else {
+      setPasswordError(language === 'EN' ? 'Current password is incorrect' : 'La contraseña actual es incorrecta');
+    }
   };
 
   const handleLogoutAll = () => {
@@ -202,22 +215,6 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language, onNa
                 </label>
                 <div style={{ padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '14px' }}>
                   {demoUser.email}
-                </div>
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                  {language === 'EN' ? 'ROLE' : 'ROL'}
-                </label>
-                <div style={{ padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '14px' }}>
-                  {demoUser.role}
-                </div>
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                  {language === 'EN' ? 'ACTIVE COMPANY' : 'EMPRESA ACTIVA'}
-                </label>
-                <div style={{ padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '14px' }}>
-                  {demoUser.activeCompany}
                 </div>
               </div>
             </div>
@@ -501,6 +498,19 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language, onNa
                   </button>
                 </div>
               </div>
+
+              {passwordError && (
+                <div style={{ padding: '12px', background: 'rgba(255, 71, 87, 0.15)', border: '1px solid var(--danger-red)', borderRadius: '8px', color: 'var(--danger-red)', fontSize: '14px' }}>
+                  {passwordError}
+                </div>
+              )}
+
+              {passwordSuccess && (
+                <div style={{ padding: '12px', background: 'rgba(46, 213, 115, 0.15)', border: '1px solid var(--success-green)', borderRadius: '8px', color: 'var(--success-green)', fontSize: '14px' }}>
+                  {passwordSuccess}
+                </div>
+              )}
+
               <button
                 onClick={handlePasswordChange}
                 style={{

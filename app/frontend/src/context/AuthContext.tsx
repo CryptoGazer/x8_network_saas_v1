@@ -21,6 +21,7 @@ interface AuthContextType {
   resetPassword: (email: string, code: string, newPassword: string) => Promise<boolean>;
   requestMagicLink: (email: string) => Promise<boolean>;
   verifyMagicLink: (token: string) => Promise<boolean>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -142,8 +143,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const changePassword = async (currentPassword: string, newPassword: string): Promise<boolean> => {
+    try {
+      await apiClient.changePassword(currentPassword, newPassword);
+      return true;
+    } catch (error) {
+      console.error('Password change failed:', error);
+      return false;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, loginWithOAuth, requestPasswordReset, verifyResetCode, resetPassword, requestMagicLink, verifyMagicLink }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, loginWithOAuth, requestPasswordReset, verifyResetCode, resetPassword, requestMagicLink, verifyMagicLink, changePassword }}>
       {children}
     </AuthContext.Provider>
   );

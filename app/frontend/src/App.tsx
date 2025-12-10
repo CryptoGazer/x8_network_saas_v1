@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import AuthPage from './pages/AuthPage';
 import OAuthCallback from './pages/OAuthCallback';
 import MagicLinkCallback from './pages/MagicLinkCallback';
 import Dashboard from './Dashboard';
+import { AdminDashboard } from './components/AdminDashboard';
+import { ManagerDashboard } from './components/ManagerDashboard';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -19,6 +22,27 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return user ? <>{children}</> : <Navigate to="/auth" replace />;
 }
 
+function RoleBasedDashboard() {
+  const { user, logout } = useAuth();
+  const [language, setLanguage] = useState('EN');
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Route based on user role
+  if (user.role === 'admin') {
+    return <AdminDashboard language={language} onLanguageChange={setLanguage} onLogout={logout} />;
+  }
+
+  if (user.role === 'manager') {
+    return <ManagerDashboard language={language} onLanguageChange={setLanguage} onLogout={logout} />;
+  }
+
+  // Default to client dashboard
+  return <Dashboard />;
+}
+
 function App() {
   return (
     <Routes>
@@ -29,7 +53,7 @@ function App() {
         path="/*"
         element={
           <PrivateRoute>
-            <Dashboard />
+            <RoleBasedDashboard />
           </PrivateRoute>
         }
       />

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import NeuralBackground from '../components/NeuralBackground';
@@ -8,9 +8,14 @@ export default function MagicLinkCallback() {
   const { verifyMagicLink } = useAuth();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [error, setError] = useState('');
+  const hasVerified = useRef(false);
 
   useEffect(() => {
     const handleCallback = async () => {
+      // Prevent duplicate requests
+      if (hasVerified.current) return;
+      hasVerified.current = true;
+
       const params = new URLSearchParams(window.location.search);
       const token = params.get('token');
 

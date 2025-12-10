@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 from app.api.v1 import auth, users, subscriptions, companies, managers, admin, oauth
 from app.core.config import settings
 
@@ -8,6 +9,16 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     version="1.0.0",
     description="X8 Network SaaS Platform API"
+)
+
+# Add SessionMiddleware for OAuth (must be added before other middleware)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SECRET_KEY,
+    session_cookie="x8_session",
+    max_age=1800,  # 30 minutes
+    same_site="lax",
+    https_only=False  # Set to True in production with HTTPS
 )
 
 app.add_middleware(

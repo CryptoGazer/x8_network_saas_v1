@@ -10,7 +10,8 @@ from app.schemas.auth import (
     SendVerificationCodeRequest,
     VerifyCodeRequest,
     CompleteRegistrationRequest,
-    ResetPasswordRequest
+    ResetPasswordRequest,
+    ChangePasswordRequest
 )
 from app.schemas.user import User as UserSchema
 from app.services.auth import authenticate_user, create_user, generate_tokens, refresh_access_token
@@ -25,7 +26,7 @@ from app.services.email import (
 )
 from app.core.deps import get_current_user
 from app.models.user import User
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, verify_password
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -322,3 +323,36 @@ async def verify_magic_link(
     # Generate tokens
     tokens = generate_tokens(user.id)
     return tokens
+
+
+@router.post("/change-password", status_code=status.HTTP_200_OK)
+async def change_password(
+    request: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Change password for authenticated user.
+    Requires current password for verification.
+    """
+    # Verify current password
+    if not verify_password(request.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect"
+        )
+
+    # Validate new password length
+    if len(request.new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be at least 8 characters long"
+        )
+
+    # Update password
+    current_user.hashed_password = get_password_hash(request.new_password)
+    await db.commit()
+
+    return {
+        "message": "Password updated successfully"
+    }
