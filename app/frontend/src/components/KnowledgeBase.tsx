@@ -198,10 +198,26 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
     if (selectedCompany && registry.length > 0) {
       const companyKBs = registry.filter(r => r.linked_company === selectedCompany);
 
-      // Fetch data for each KB type if it exists
-      companyKBs.forEach(kb => {
-        fetchKBData(kb.kb_id);
-      });
+      if (companyKBs.length > 0) {
+        // Auto-select KB type based on what exists
+        // If both Product and Service exist, prefer Service (as specified)
+        const hasService = companyKBs.some(kb => kb.kb_type === 'Service');
+        const hasProduct = companyKBs.some(kb => kb.kb_type === 'Product');
+
+        if (hasService && hasProduct) {
+          // Both exist, default to Service
+          setKbType('Service');
+        } else if (hasService) {
+          setKbType('Service');
+        } else if (hasProduct) {
+          setKbType('Product');
+        }
+
+        // Fetch data for each KB type if it exists
+        companyKBs.forEach(kb => {
+          fetchKBData(kb.kb_id);
+        });
+      }
     }
   }, [registry, selectedCompany]);
 

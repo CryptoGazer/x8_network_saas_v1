@@ -46,6 +46,19 @@ class Settings(BaseSettings):
     SUPABASE_KEY: str = ""
     SUPABASE_SERVICE_ROLE_KEY: str = ""
 
+    # WAHA (WhatsApp HTTP API) Configuration
+    WAHA_API_URL: str = ""
+    WAHA_API_KEY: str = ""
+    WAHA_WEBHOOK_URL: str = ""
+
+    # Google Calendar API Configuration
+    GOOGLE_CALENDAR_REDIRECT_URI: str = ""
+
+    # n8n AI FAQ Chatbot Configuration
+    N8N_AI_FAQ_URL: str = ""
+    N8N_AI_FAQ_API_KEY: str = ""
+    N8N_AI_FAQ_WEBHOOK_SECRET: str = ""
+
     class Config:
         env_file = "app/.env"
         case_sensitive = True

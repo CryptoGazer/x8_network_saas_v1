@@ -74,9 +74,9 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
       case 'double':
         return 2;
       case 'growth':
-        return 6;
+        return 4; // Growth plan allows 4 channels
       case 'special':
-        return 999; // Don't touch special offer
+        return 6; // Special offer unlocks all 6 channels
       default:
         return 1;
     }
@@ -344,7 +344,11 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
             <select
               id="planSelector"
               value={selectedPlan}
-              onChange={(e) => setSelectedPlan(e.target.value)}
+              onChange={(e) => {
+                setSelectedPlan(e.target.value);
+                // Clear all selected channels when plan changes
+                setSelectedChannels([]);
+              }}
               style={{
                 width: '100%',
                 padding: '12px',

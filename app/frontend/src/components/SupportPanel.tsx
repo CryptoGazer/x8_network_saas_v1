@@ -369,21 +369,6 @@ export const SupportPanel: React.FC<SupportPanelProps> = ({ language, onNavigate
                   justifyContent: 'center'
                 }}
               >
-                <Smile size={20} />
-              </button>
-              <button
-                style={{
-                  padding: '10px',
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: '8px',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
                 <Mic size={20} />
               </button>
               <input
@@ -555,6 +540,21 @@ export const SupportPanel: React.FC<SupportPanelProps> = ({ language, onNavigate
                 }}
               >
                 <Paperclip size={20} />
+              </button>
+              <button
+                style={{
+                  padding: '10px',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: '8px',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <Mic size={20} />
               </button>
               <input
                 type="text"

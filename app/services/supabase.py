@@ -6,6 +6,7 @@ import re
 from decimal import Decimal
 from datetime import datetime
 import json
+import asyncio
 
 
 class SupabaseService:
@@ -24,11 +25,13 @@ class SupabaseService:
         return self.client is not None
 
     def generate_table_name(self, company_name: str, kb_type: str) -> str:
-        """Generate a safe table name from company name and KB type."""
-        # Sanitize company name
-        safe_company = re.sub(r'[^a-zA-Z0-9]+', '_', company_name.lower())
-        safe_type = kb_type.lower()
-        return f"kb_{safe_company}_{safe_type}"
+        """
+        Generate table name with format: "{CompanyName} {Type}".
+        Example: "DB Service AIAgent Service" or "DB Service AIAgent Product"
+        """
+        # Keep original company name and add space + capitalized type
+        # This matches the required format: "{CompanyName} Product" or "{CompanyName} Service"
+        return f"{company_name} {kb_type}"
 
     async def check_existing_kb(self, user_id: int, company_name: str, kb_type: str) -> Dict[str, Any]:
         """Check if a KB of this type already exists for this company."""
@@ -257,6 +260,10 @@ class SupabaseService:
 
             if not rpc_result.data.get('ok'):
                 raise Exception(f"Failed to create table: {rpc_result.data.get('error', 'Unknown error')}")
+
+            # IMPORTANT: Wait for Supabase schema cache to refresh after table creation
+            # Without this delay, the insert operation may fail with "table not found in schema cache"
+            await asyncio.sleep(3)
 
             # Step 2: Convert DataFrame rows to match schema
             records = []

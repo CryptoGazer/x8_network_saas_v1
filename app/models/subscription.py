@@ -7,8 +7,9 @@ from app.db.session import Base
 
 class SubscriptionPlan(str, enum.Enum):
     FREE = "free"
-    BASIC = "basic"
-    PRO = "pro"
+    SINGLE = "single"
+    DOUBLE = "double"
+    GROWTH = "growth"
     ENTERPRISE = "enterprise"
 
 
