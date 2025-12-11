@@ -276,41 +276,42 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
     kbType === 'Product' ? c.type === 'product' : c.type === 'service'
   );
 
-  const handleAddRow = () => {
-    if (kbType === 'Product') {
-      const newRow: ProductRow = {
-        product_no: `RSR-PROD-${String(productRows.length + 10).padStart(3, '0')}`,
-        product_name: '',
+  const handleAddRow = async () => {
+    if (!selectedCompany) {
+      alert(language === 'EN' ? 'Please select a company first' : 'Por favor selecciona una empresa primero');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('access_token');
+      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      const tableName = `${selectedCompany} ${kbType}`;
+
+      const newRow = kbType === 'Product' ? {
+        product_name: 'New Product',
         sku: '',
         description: '',
-        package_type: '',
-        cities: '',
-        webpage_link: '',
-        product_image: '',
-        video_link: '',
-        price_a_eur: 0,
-        delivery_price_eur: 0,
-        sum_free_delivery_eur: 0,
-        stock_actual: 0,
-        delivery_time_hours: 0,
-        payment_reminder_days: 0,
-        supplier_contact_details: '',
+        unit: '',
+        website_url: '',
+        image_url: '',
+        video_url: '',
+        price_eur: null,
+        logistics_price_eur: null,
+        free_delivery: null,
+        stock_units: null,
+        delivery_time_hours: null,
+        payment_reminder: null,
+        supplier_contact: '',
         supplier_company_services: '',
-        warehouse_physical_address: '',
-        is_active: false,
-        last_updated: new Date().toISOString()
-      };
-      const updated = [...productRows, newRow];
-      setProductRows(updated);
-    } else {
-      const newRow: ServiceRow = {
-        service_no: `RSR-SERV-${String(serviceRows.length + 12).padStart(3, '0')}`,
-        service_name: '',
+        warehouse_address: '',
+        cities: []
+      } : {
+        product_name: 'New Service',
         sku: '',
         service_subcategory: '',
         service_category: '',
         unit: '',
-        duration_hours: 0,
+        duration: null,
         format: '',
         description: '',
         included: '',
@@ -321,31 +322,78 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
         not_suitable_for: '',
         specialist_initials: '',
         specialist_area: '',
-        webpage_link: '',
-        product_image: '',
-        video_link: '',
-        price_a_eur: 0,
-        payment_reminder_days: 0,
-        stock_actual: 0,
+        website_url: '',
+        image_url: '',
+        video_url: '',
+        price_eur: null,
+        payment_reminder: null,
+        stock_units: null,
         location: '',
         specialist_contacts: '',
-        company_name: '',
-        details: '',
-        is_active: false,
-        last_updated: new Date().toISOString()
+        company: '',
+        details: ''
       };
-      const updated = [...serviceRows, newRow];
-      setServiceRows(updated);
+
+      const response = await fetch(`${API_URL}/api/v1/knowledge-base/row/${encodeURIComponent(tableName)}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(newRow)
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to add row');
+      }
+
+      // Refresh data
+      await fetchKBData(tableName);
+
+    } catch (error: any) {
+      console.error('Failed to add row:', error);
+      alert(language === 'EN' ? `Failed to add row: ${error.message}` : `Error al añadir fila: ${error.message}`);
     }
   };
 
-  const handleDeleteRow = (index: number) => {
-    if (kbType === 'Product') {
-      const updated = productRows.filter((_, i) => i !== index);
-      setProductRows(updated);
-    } else {
-      const updated = serviceRows.filter((_, i) => i !== index);
-      setServiceRows(updated);
+  const handleDeleteRow = async (index: number) => {
+    if (!selectedCompany) return;
+
+    const currentRow = kbType === 'Product' ? productRows[index] : serviceRows[index];
+    if (!currentRow || !(currentRow as any).id) {
+      alert(language === 'EN' ? 'Cannot delete row without ID' : 'No se puede eliminar fila sin ID');
+      return;
+    }
+
+    if (!confirm(language === 'EN' ? 'Are you sure you want to delete this row?' : '¿Estás seguro de que quieres eliminar esta fila?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('access_token');
+      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      const tableName = `${selectedCompany} ${kbType}`;
+      const rowId = (currentRow as any).id;
+
+      const response = await fetch(`${API_URL}/api/v1/knowledge-base/row/${encodeURIComponent(tableName)}/${rowId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to delete row');
+      }
+
+      // Refresh data
+      await fetchKBData(tableName);
+
+    } catch (error: any) {
+      console.error('Failed to delete row:', error);
+      alert(language === 'EN' ? `Failed to delete row: ${error.message}` : `Error al eliminar fila: ${error.message}`);
     }
   };
 
@@ -515,16 +563,108 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
     setShowBulkUploadModal(false);
   };
 
-  const updateProductCell = (index: number, field: keyof ProductRow, value: any) => {
+  const updateProductCell = async (index: number, field: keyof ProductRow, value: any) => {
+    if (!selectedCompany) return;
+
+    // Optimistically update local state for responsive UI
     const updated = [...productRows];
     updated[index] = { ...updated[index], [field]: value, last_updated: new Date().toISOString() };
     setProductRows(updated);
+
+    // Get the row ID and table name
+    const currentRow = productRows[index];
+    if (!currentRow || !(currentRow as any).id) {
+      console.error('Cannot update row without ID');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('access_token');
+      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      const tableName = `${selectedCompany} ${kbType}`;
+      const rowId = (currentRow as any).id;
+
+      // Prepare update payload with only the changed field
+      const updatePayload = {
+        [field]: value
+      };
+
+      const response = await fetch(`${API_URL}/api/v1/knowledge-base/row/${encodeURIComponent(tableName)}/${rowId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updatePayload)
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to update cell');
+      }
+
+      // Backend updated successfully
+      console.log(`Updated ${field} for row ${rowId}`);
+
+    } catch (error: any) {
+      console.error('Failed to update cell:', error);
+      // Optionally revert local state or show error to user
+      alert(language === 'EN' ? `Failed to save changes: ${error.message}` : `Error al guardar cambios: ${error.message}`);
+      // Refresh data to get the correct state from backend
+      await fetchKBData(`${selectedCompany} ${kbType}`);
+    }
   };
 
-  const updateServiceCell = (index: number, field: keyof ServiceRow, value: any) => {
+  const updateServiceCell = async (index: number, field: keyof ServiceRow, value: any) => {
+    if (!selectedCompany) return;
+
+    // Optimistically update local state for responsive UI
     const updated = [...serviceRows];
     updated[index] = { ...updated[index], [field]: value, last_updated: new Date().toISOString() };
     setServiceRows(updated);
+
+    // Get the row ID and table name
+    const currentRow = serviceRows[index];
+    if (!currentRow || !(currentRow as any).id) {
+      console.error('Cannot update row without ID');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('access_token');
+      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      const tableName = `${selectedCompany} ${kbType}`;
+      const rowId = (currentRow as any).id;
+
+      // Prepare update payload with only the changed field
+      const updatePayload = {
+        [field]: value
+      };
+
+      const response = await fetch(`${API_URL}/api/v1/knowledge-base/row/${encodeURIComponent(tableName)}/${rowId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updatePayload)
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to update cell');
+      }
+
+      // Backend updated successfully
+      console.log(`Updated ${field} for row ${rowId}`);
+
+    } catch (error: any) {
+      console.error('Failed to update cell:', error);
+      // Optionally revert local state or show error to user
+      alert(language === 'EN' ? `Failed to save changes: ${error.message}` : `Error al guardar cambios: ${error.message}`);
+      // Refresh data to get the correct state from backend
+      await fetchKBData(`${selectedCompany} ${kbType}`);
+    }
   };
 
   const currentRows = kbType === 'Product' ? productRows : serviceRows;

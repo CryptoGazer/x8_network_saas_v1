@@ -5,17 +5,6 @@ import enum
 from app.db.session import Base
 
 
-class ProductType(str, enum.Enum):
-    SERVICE = "Service"
-    PRODUCT = "Product"
-    BOTH = "Both"
-
-
-class CompanyType(str, enum.Enum):
-    PRODUCT = "product"
-    SERVICE = "service"
-
-
 class CompanyStatus(str, enum.Enum):
     ACTIVE = "Active"
     INACTIVE = "Inactive"
@@ -30,8 +19,7 @@ class Company(Base):
     name = Column(String, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
-    product_type = Column(SQLEnum(ProductType), default=ProductType.SERVICE)
-    company_type = Column(SQLEnum(CompanyType), nullable=False, default=CompanyType.PRODUCT)
+    shop_type = Column(String, nullable=False, default="service")  # Can be "product", "service", or any custom type
     status = Column(SQLEnum(CompanyStatus), default=CompanyStatus.ACTIVE)
 
     total_messages = Column(Integer, default=0)

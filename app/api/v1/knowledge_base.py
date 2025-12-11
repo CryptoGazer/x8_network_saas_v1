@@ -194,3 +194,94 @@ async def delete_kb(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete knowledge base: {str(e)}")
+
+
+@router.post("/row/{table_name}")
+async def add_row_to_kb(
+    table_name: str,
+    row_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Add a new row to a knowledge base table in Supabase.
+    """
+    if not supabase_service.is_configured():
+        raise HTTPException(status_code=500, detail="Supabase is not configured")
+
+    try:
+        result = await supabase_service.add_row(
+            table_name=table_name,
+            row_data=row_data,
+            user_id=current_user.id
+        )
+
+        return {
+            "success": True,
+            "message": "Row added successfully",
+            "row": result
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to add row: {str(e)}")
+
+
+@router.patch("/row/{table_name}/{row_id}")
+async def update_row_in_kb(
+    table_name: str,
+    row_id: int,
+    row_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update a row in a knowledge base table in Supabase.
+    """
+    if not supabase_service.is_configured():
+        raise HTTPException(status_code=500, detail="Supabase is not configured")
+
+    try:
+        result = await supabase_service.update_row(
+            table_name=table_name,
+            row_id=row_id,
+            row_data=row_data,
+            user_id=current_user.id
+        )
+
+        return {
+            "success": True,
+            "message": "Row updated successfully",
+            "row": result
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update row: {str(e)}")
+
+
+@router.delete("/row/{table_name}/{row_id}")
+async def delete_row_from_kb(
+    table_name: str,
+    row_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a row from a knowledge base table in Supabase.
+    """
+    if not supabase_service.is_configured():
+        raise HTTPException(status_code=500, detail="Supabase is not configured")
+
+    try:
+        result = await supabase_service.delete_row(
+            table_name=table_name,
+            row_id=row_id,
+            user_id=current_user.id
+        )
+
+        return {
+            "success": True,
+            "message": "Row deleted successfully"
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete row: {str(e)}")

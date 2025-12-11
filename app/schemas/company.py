@@ -1,22 +1,23 @@
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
-from app.models.company import ProductType, CompanyStatus
+from app.models.company import CompanyStatus
 
 
 class CompanyBase(BaseModel):
     name: str
-    product_type: ProductType = ProductType.SERVICE
+    shop_type: str = "service"  # Can be "product", "service", or any custom type
 
 
 class CompanyCreate(CompanyBase):
+    company_type: str = "service"  # Product or Service (for Supabase table creation)
     channels: List[str] = []  # List of channel IDs: whatsapp, telegram, instagram, facebook, gmail, tiktok
     plan: str = "free"  # User's subscription plan: free, single, double, growth, special
 
 
 class CompanyUpdate(BaseModel):
     name: Optional[str] = None
-    product_type: Optional[ProductType] = None
+    shop_type: Optional[str] = None
     status: Optional[CompanyStatus] = None
 
 

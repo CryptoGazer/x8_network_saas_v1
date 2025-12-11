@@ -95,8 +95,26 @@ async def list_companies(
         )
         channels = result_channels.scalars().all()
 
-        company_dict = CompanySchema.model_validate(company).model_dump()
-        company_dict["channels"] = [ch.platform.value for ch in channels]
+        # Manually construct response to avoid lazy loading issues
+        company_dict = {
+            "id": company.id,
+            "company_id": company.company_id,
+            "name": company.name,
+            "shop_type": company.shop_type,
+            "user_id": company.user_id,
+            "status": company.status,
+            "total_messages": company.total_messages,
+            "type1_count": company.type1_count,
+            "type2_count": company.type2_count,
+            "type2_unpaid": company.type2_unpaid,
+            "type3_count": company.type3_count,
+            "type3_paid": company.type3_paid,
+            "avg_response_time": company.avg_response_time,
+            "subscription_ends": company.subscription_ends,
+            "created_at": company.created_at,
+            "updated_at": company.updated_at,
+            "channels": [ch.platform.value for ch in channels]
+        }
         companies_data.append(CompanySchema(**company_dict))
 
     return companies_data
@@ -108,12 +126,25 @@ async def create_company(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    # Check if company with same name already exists for this user
+    existing_company = await db.execute(
+        select(Company).where(
+            Company.user_id == current_user.id,
+            Company.name == company_data.name
+        )
+    )
+    if existing_company.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"A company with the name '{company_data.name}' already exists for this user"
+        )
+
     company_id = generate_company_id()
 
     company = Company(
         company_id=company_id,
         name=company_data.name,
-        product_type=company_data.product_type,
+        shop_type=company_data.shop_type,
         user_id=current_user.id
     )
 
@@ -121,12 +152,10 @@ async def create_company(
     await db.flush()
     await db.refresh(company)
 
-    # Create Supabase table if product_type is "product" or "service"
-    # Convert to capitalized form for table name
-    if company_data.product_type.lower() in ["product", "service"]:
-        # Capitalize first letter for table name: "Product" or "Service"
-        table_suffix = company_data.product_type.capitalize()
-        await create_supabase_table(company_data.name, table_suffix)
+    # Create Supabase table based on company_type (Product or Service)
+    # Capitalize first letter for table name: "Product" or "Service"
+    table_suffix = company_data.company_type.capitalize()
+    await create_supabase_table(company_data.name, table_suffix)
 
     # Create channel rows based on selected channels and plan
     # Map channel IDs to ChannelPlatform enum
@@ -170,9 +199,28 @@ async def create_company(
             created_channels.append(channel_id.lower())
 
     await db.commit()
+    await db.refresh(company)
 
-    company_dict = CompanySchema.model_validate(company).model_dump()
-    company_dict["channels"] = created_channels
+    # Manually construct response to avoid lazy loading issues
+    company_dict = {
+        "id": company.id,
+        "company_id": company.company_id,
+        "name": company.name,
+        "shop_type": company.shop_type,
+        "user_id": company.user_id,
+        "status": company.status,
+        "total_messages": company.total_messages,
+        "type1_count": company.type1_count,
+        "type2_count": company.type2_count,
+        "type2_unpaid": company.type2_unpaid,
+        "type3_count": company.type3_count,
+        "type3_paid": company.type3_paid,
+        "avg_response_time": company.avg_response_time,
+        "subscription_ends": company.subscription_ends,
+        "created_at": company.created_at,
+        "updated_at": company.updated_at,
+        "channels": created_channels
+    }
 
     return CompanySchema(**company_dict)
 
@@ -202,8 +250,26 @@ async def get_company(
     )
     channels = result_channels.scalars().all()
 
-    company_dict = CompanySchema.model_validate(company).model_dump()
-    company_dict["channels"] = [ch.platform.value for ch in channels]
+    # Manually construct response to avoid lazy loading issues
+    company_dict = {
+        "id": company.id,
+        "company_id": company.company_id,
+        "name": company.name,
+        "shop_type": company.shop_type,
+        "user_id": company.user_id,
+        "status": company.status,
+        "total_messages": company.total_messages,
+        "type1_count": company.type1_count,
+        "type2_count": company.type2_count,
+        "type2_unpaid": company.type2_unpaid,
+        "type3_count": company.type3_count,
+        "type3_paid": company.type3_paid,
+        "avg_response_time": company.avg_response_time,
+        "subscription_ends": company.subscription_ends,
+        "created_at": company.created_at,
+        "updated_at": company.updated_at,
+        "channels": [ch.platform.value for ch in channels]
+    }
 
     return CompanySchema(**company_dict)
 
@@ -231,12 +297,12 @@ async def update_company(
 
     if company_update.name is not None:
         company.name = company_update.name
-    if company_update.product_type is not None:
-        company.product_type = company_update.product_type
+    if company_update.shop_type is not None:
+        company.shop_type = company_update.shop_type
     if company_update.status is not None:
         company.status = company_update.status
 
-    await db.flush()
+    await db.commit()
     await db.refresh(company)
 
     result_channels = await db.execute(
@@ -244,8 +310,26 @@ async def update_company(
     )
     channels = result_channels.scalars().all()
 
-    company_dict = CompanySchema.model_validate(company).model_dump()
-    company_dict["channels"] = [ch.platform.value for ch in channels]
+    # Manually construct response to avoid lazy loading issues
+    company_dict = {
+        "id": company.id,
+        "company_id": company.company_id,
+        "name": company.name,
+        "shop_type": company.shop_type,
+        "user_id": company.user_id,
+        "status": company.status,
+        "total_messages": company.total_messages,
+        "type1_count": company.type1_count,
+        "type2_count": company.type2_count,
+        "type2_unpaid": company.type2_unpaid,
+        "type3_count": company.type3_count,
+        "type3_paid": company.type3_paid,
+        "avg_response_time": company.avg_response_time,
+        "subscription_ends": company.subscription_ends,
+        "created_at": company.created_at,
+        "updated_at": company.updated_at,
+        "channels": [ch.platform.value for ch in channels]
+    }
 
     return CompanySchema(**company_dict)
 

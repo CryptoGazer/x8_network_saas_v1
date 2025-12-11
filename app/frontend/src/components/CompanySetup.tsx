@@ -9,7 +9,7 @@ interface CompanySetupProps {
 interface Company {
   id: string;
   name: string;
-  type: string;
+  shop_type: string;
   channels: string[];
   plan: string;
   activationDate: string;
@@ -19,6 +19,7 @@ interface Company {
 export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate }) => {
   const [companyName, setCompanyName] = useState('');
   const [companyType, setCompanyType] = useState('product');
+  const [shopType, setShopType] = useState('');
   const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
   const [selectedPlan, setSelectedPlan] = useState('single');
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -179,6 +180,11 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
       return;
     }
 
+    if (!shopType.trim()) {
+      alert(language === 'EN' ? 'Please enter a shop type' : 'Por favor ingrese un tipo de negocio');
+      return;
+    }
+
     if (selectedChannels.length === 0) {
       alert(language === 'EN' ? 'Please select at least one channel' : 'Por favor seleccione al menos un canal');
       return;
@@ -188,12 +194,6 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
       const token = localStorage.getItem('access_token');
       const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
-      // Map companyType to ProductType enum
-      const productTypeMap: Record<string, string> = {
-        'product': 'Product',
-        'service': 'Service'
-      };
-
       const response = await fetch(`${API_URL}/api/v1/companies`, {
         method: 'POST',
         headers: {
@@ -202,7 +202,8 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
         },
         body: JSON.stringify({
           name: companyName,
-          product_type: productTypeMap[companyType] || 'Service',
+          company_type: companyType,  // Product or Service (for Supabase table)
+          shop_type: shopType,  // User's manual description of business type
           channels: selectedChannels,
           plan: selectedPlan
         })
@@ -226,6 +227,7 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
       // Reset form
       setCompanyName('');
       setCompanyType('product');
+      setShopType('');
       setSelectedChannels([]);
       setSelectedPlan(currentUserPlan === 'free' ? 'free' : 'single');
     } catch (error: any) {
@@ -358,6 +360,42 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
               <option value="product">{language === 'EN' ? 'Product' : 'Producto'}</option>
               <option value="service">{language === 'EN' ? 'Service' : 'Servicio'}</option>
             </select>
+          </div>
+
+          {/* Shop Type */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '13px',
+              fontWeight: 500,
+              color: 'var(--text-primary)',
+              marginBottom: '8px'
+            }}>
+              {language === 'EN' ? 'Shop Type' : 'Tipo de Negocio'}
+            </label>
+            <input
+              type="text"
+              value={shopType}
+              onChange={(e) => setShopType(e.target.value)}
+              placeholder={language === 'EN' ? 'e.g., Restaurant, Hotel, Retail Store' : 'ej., Restaurante, Hotel, Tienda'}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--glass-border)',
+                borderRadius: '8px',
+                color: 'var(--text-primary)',
+                fontSize: '14px',
+                outline: 'none',
+                transition: 'all var(--transition-fast)'
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = 'var(--brand-cyan)';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = 'var(--glass-border)';
+              }}
+            />
           </div>
 
           {/* Channels */}
@@ -603,7 +641,7 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
                         {company.name}
                       </td>
                       <td style={{ padding: '12px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                        {company.type === 'product'
+                        {company.shop_type === 'product'
                           ? (language === 'EN' ? 'Product' : 'Producto')
                           : (language === 'EN' ? 'Service' : 'Servicio')
                         }

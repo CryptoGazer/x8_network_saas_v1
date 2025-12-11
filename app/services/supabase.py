@@ -505,6 +505,105 @@ class SupabaseService:
         except Exception as e:
             raise Exception(f"Failed to delete KB: {str(e)}")
 
+    async def add_row(
+        self,
+        table_name: str,
+        row_data: Dict[str, Any],
+        user_id: int
+    ) -> Dict[str, Any]:
+        """Add a new row to a knowledge base table."""
+        if not self.is_configured():
+            raise Exception("Supabase is not configured")
+
+        try:
+            # Add source_updated_at timestamp
+            row_data['source_updated_at'] = datetime.now().isoformat()
+
+            # Insert the row
+            response = self.client.table(table_name).insert(row_data).execute()
+
+            if response.data and len(response.data) > 0:
+                # Update row count in registry
+                await self._update_registry_row_count(table_name, user_id)
+                return response.data[0]
+            else:
+                raise Exception("No data returned from insert")
+
+        except Exception as e:
+            raise Exception(f"Failed to add row: {str(e)}")
+
+    async def update_row(
+        self,
+        table_name: str,
+        row_id: int,
+        row_data: Dict[str, Any],
+        user_id: int
+    ) -> Dict[str, Any]:
+        """Update a row in a knowledge base table."""
+        if not self.is_configured():
+            raise Exception("Supabase is not configured")
+
+        try:
+            # Update source_updated_at timestamp
+            row_data['source_updated_at'] = datetime.now().isoformat()
+
+            # Update the row
+            response = self.client.table(table_name)\
+                .update(row_data)\
+                .eq('id', row_id)\
+                .execute()
+
+            if response.data and len(response.data) > 0:
+                return response.data[0]
+            else:
+                raise Exception("No data returned from update")
+
+        except Exception as e:
+            raise Exception(f"Failed to update row: {str(e)}")
+
+    async def delete_row(
+        self,
+        table_name: str,
+        row_id: int,
+        user_id: int
+    ) -> Dict[str, Any]:
+        """Delete a row from a knowledge base table."""
+        if not self.is_configured():
+            raise Exception("Supabase is not configured")
+
+        try:
+            # Delete the row
+            response = self.client.table(table_name)\
+                .delete()\
+                .eq('id', row_id)\
+                .execute()
+
+            # Update row count in registry
+            await self._update_registry_row_count(table_name, user_id)
+
+            return {"success": True}
+
+        except Exception as e:
+            raise Exception(f"Failed to delete row: {str(e)}")
+
+    async def _update_registry_row_count(self, table_name: str, user_id: int):
+        """Update the row count in kb_registry after add/delete operations."""
+        try:
+            # Get current row count
+            count_response = self.client.table(table_name).select('*', count='exact').execute()
+            total_count = count_response.count if hasattr(count_response, 'count') else len(count_response.data)
+
+            # Update registry
+            self.client.table('kb_registry')\
+                .update({'row_count': total_count})\
+                .eq('table_name', table_name)\
+                .eq('user_id', user_id)\
+                .execute()
+
+        except Exception as e:
+            # Don't fail the operation if registry update fails
+            print(f"Warning: Failed to update registry row count: {str(e)}")
+
     def _sanitize_table_name(self, name: str) -> str:
         """Sanitize table name to be database-safe."""
         # Replace spaces and special characters with underscores
