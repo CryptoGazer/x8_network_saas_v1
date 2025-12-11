@@ -406,7 +406,134 @@ export const IntegrationsTokens: React.FC<IntegrationsTokensProps> = ({ language
 
       {selectedCompany && !loading && availableChannels && (
         <>
-          {isEnterprise ? (
+          {currentPlan === 'free' && (() => {
+            // For FREE plan users, show only the channel they selected during company setup
+            const companies = JSON.parse(localStorage.getItem('companies') || '[]');
+            const currentCompany = companies.find((c: any) => c.id === selectedCompany);
+            const selectedChannel = currentCompany?.channels?.[0]; // FREE plan = only 1 channel
+
+            if (!selectedChannel) {
+              return (
+                <div style={{
+                  padding: '32px 24px',
+                  marginTop: '16px',
+                  background: 'rgba(251, 191, 36, 0.1)',
+                  border: '1px solid rgba(251, 191, 36, 0.3)',
+                  borderRadius: '16px',
+                  textAlign: 'center'
+                }}>
+                  <p style={{ color: 'var(--text-primary)', fontSize: '16px' }}>
+                    {language === 'EN'
+                      ? 'Please select a channel in Company Setup first.'
+                      : 'Por favor selecciona un canal en Configuración de Empresa primero.'}
+                  </p>
+                </div>
+              );
+            }
+
+            // Map channel ID to display name
+            const channelMap: Record<string, { name: string; key: keyof AvailableChannels; icon: string }> = {
+              'whatsapp': { name: 'WhatsApp', key: 'whatsapp', icon: '💬' },
+              'telegram': { name: 'Telegram', key: 'telegram', icon: '✈️' },
+              'instagram': { name: 'Instagram', key: 'instagram', icon: '📷' },
+              'facebook': { name: 'Facebook', key: 'facebook', icon: '📘' },
+              'gmail': { name: 'Email', key: 'email', icon: '📧' },
+              'tiktok': { name: 'TikTok', key: 'tiktok', icon: '🎵' }
+            };
+
+            const channelInfo = channelMap[selectedChannel];
+            if (!channelInfo) return null;
+
+            return (
+              <div style={{ marginTop: '32px' }}>
+                <div style={{
+                  padding: '12px 16px',
+                  marginBottom: '16px',
+                  background: 'rgba(251, 191, 36, 0.1)',
+                  border: '1px solid rgba(251, 191, 36, 0.3)',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}>
+                  <AlertCircle size={20} style={{ color: 'var(--accent-yellow)' }} />
+                  <p style={{ color: 'var(--text-primary)', fontSize: '14px', margin: 0 }}>
+                    {language === 'EN'
+                      ? `FREE plan: You selected ${channelInfo.name}. Upgrade to connect more channels.`
+                      : `Plan GRATIS: Seleccionaste ${channelInfo.name}. Actualiza para conectar más canales.`}
+                  </p>
+                </div>
+                <h2 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
+                  {channelInfo.name} {language === 'EN' ? 'Setup' : 'Configuración'}
+                </h2>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+                  {selectedChannel === 'whatsapp' && renderChannel('WhatsApp', 'whatsapp', '💬', (
+                    getStatus('WhatsApp') === 'connected' ? (
+                      <button onClick={handleWhatsAppDisconnect} style={{
+                        width: '100%',
+                        padding: '10px',
+                        background: 'rgba(255, 71, 71, 0.1)',
+                        border: '1px solid var(--danger-red)',
+                        borderRadius: '8px',
+                        color: 'var(--danger-red)',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}>
+                        {t.disconnect}
+                      </button>
+                    ) : whatsappQR ? (
+                      <div style={{ textAlign: 'center' }}>
+                        <img src={whatsappQR} alt="QR Code" style={{ maxWidth: '200px', margin: '0 auto' }} />
+                        <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>{t.scanQR}</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <input
+                          type="text"
+                          value={whatsappNumber}
+                          onChange={(e) => setWhatsappNumber(e.target.value)}
+                          placeholder={t.phonePlaceholder}
+                          style={{
+                            width: '100%',
+                            padding: '10px',
+                            marginBottom: '8px',
+                            background: 'var(--bg-secondary)',
+                            border: '1px solid var(--glass-border)',
+                            borderRadius: '8px',
+                            color: 'var(--text-primary)',
+                            fontSize: '14px'
+                          }}
+                        />
+                        <button onClick={handleWhatsAppConnect} disabled={whatsappLoading || !whatsappNumber} style={{
+                          width: '100%',
+                          padding: '10px',
+                          background: 'linear-gradient(135deg, var(--brand-cyan), var(--brand-teal))',
+                          border: 'none',
+                          borderRadius: '8px',
+                          color: '#FFFFFF',
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          cursor: whatsappLoading || !whatsappNumber ? 'not-allowed' : 'pointer',
+                          opacity: whatsappLoading || !whatsappNumber ? 0.6 : 1,
+                        }}>
+                          {t.connect}
+                        </button>
+                      </div>
+                    )
+                  ))}
+                  {selectedChannel !== 'whatsapp' && renderChannel(
+                    channelInfo.name,
+                    channelInfo.key,
+                    channelInfo.icon,
+                    <p style={{ textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>{t.comingSoon}</p>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {currentPlan !== 'free' && isEnterprise && (
             <div style={{
               padding: '32px 24px',
               marginTop: '16px',
@@ -448,7 +575,9 @@ export const IntegrationsTokens: React.FC<IntegrationsTokensProps> = ({ language
                 {t.contactSupport}
               </button>
             </div>
-          ) : (
+          )}
+
+          {currentPlan !== 'free' && !isEnterprise && (
             <>
               {channelLimit !== null && (() => {
                 const connectedCount = connectedIntegrations.filter(i => i.status === 'connected').length;
@@ -569,7 +698,8 @@ export const IntegrationsTokens: React.FC<IntegrationsTokensProps> = ({ language
             </div>
           </div>
             </>
-          )}
+          )
+        }
         </>
       )}
 

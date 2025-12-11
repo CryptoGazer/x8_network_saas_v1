@@ -24,6 +24,7 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
   const [companies, setCompanies] = useState<Company[]>([]);
   const [specialOfferEnabled, setSpecialOfferEnabled] = useState(false);
   const [specialOfferData, setSpecialOfferData] = useState<{ title: string; monthlyPrice: string; setupFee: string } | null>(null);
+  const [currentUserPlan, setCurrentUserPlan] = useState<string>('free'); // Current user's plan from backend
 
   useEffect(() => {
     const saved = localStorage.getItem('specialOffer');
@@ -42,7 +43,70 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
         console.error('Failed to load special offer:', e);
       }
     }
+
+    // Clean up Test Service company from localStorage
+    cleanUpTestCompanies();
+
+    // Fetch current user's plan from backend
+    fetchCurrentUserPlan();
+
+    // Fetch companies from backend
+    fetchCompanies();
   }, []);
+
+  const cleanUpTestCompanies = () => {
+    try {
+      const storedCompanies = localStorage.getItem('companies');
+      if (storedCompanies) {
+        const parsed = JSON.parse(storedCompanies);
+        // Remove any test companies
+        const filtered = parsed.filter((c: Company) =>
+          !c.name.toLowerCase().includes('test') &&
+          c.name !== 'Test Service'
+        );
+        localStorage.setItem('companies', JSON.stringify(filtered));
+      }
+    } catch (e) {
+      console.error('Failed to clean up test companies:', e);
+    }
+  };
+
+  const fetchCompanies = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${API_URL}/api/v1/companies`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCompanies(data);
+        // Also update localStorage for compatibility
+        localStorage.setItem('companies', JSON.stringify(data));
+      }
+    } catch (error) {
+      console.error('Failed to fetch companies:', error);
+    }
+  };
+
+  const fetchCurrentUserPlan = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${API_URL}/api/v1/integrations/available`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      setCurrentUserPlan(data.current_plan || 'free');
+
+      // If user has FREE plan, auto-select it
+      if (data.current_plan === 'free') {
+        setSelectedPlan('free');
+      }
+    } catch (error) {
+      console.error('Failed to fetch user plan:', error);
+    }
+  };
 
   const channels = [
     { id: 'whatsapp', name: 'WhatsApp', icon: MessageCircle, color: '#25D366' },
@@ -54,21 +118,29 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
   ];
 
   const basePlans = [
-    { id: 'single', label: 'Single — €249/mo + Setup €199' },
-    { id: 'double', label: 'Double — €399/mo + Setup €299' },
-    { id: 'growth', label: 'Growth — €599/mo + Setup €399' },
-    { id: 'special', label: 'Special Offer — Custom €/mo + Custom Setup', color: '#F7C948' }
+    { id: 'free', label: 'FREE — Trial (1 channel)', disabled: currentUserPlan !== 'free' },
+    { id: 'single', label: 'Single — €249/mo + Setup €199', disabled: currentUserPlan === 'free' },
+    { id: 'double', label: 'Double — €399/mo + Setup €299', disabled: currentUserPlan === 'free' },
+    { id: 'growth', label: 'Growth — €599/mo + Setup €399', disabled: currentUserPlan === 'free' },
+    { id: 'special', label: 'Special Offer — Custom €/mo + Custom Setup', color: '#F7C948', disabled: currentUserPlan === 'free' }
   ];
 
   const plans = specialOfferEnabled && specialOfferData
     ? [
-        { id: 'special', label: `${specialOfferData.title} — ${specialOfferData.monthlyPrice}/mo + Setup ${specialOfferData.setupFee}` },
+        {
+          id: 'special',
+          label: `${specialOfferData.title} — ${specialOfferData.monthlyPrice}/mo + Setup ${specialOfferData.setupFee}`,
+          color: '#F7C948',
+          disabled: currentUserPlan === 'free'
+        },
         ...basePlans
       ]
     : basePlans;
 
   const getMaxChannels = (planId: string): number => {
     switch (planId) {
+      case 'free':
+        return 1; // FREE plan allows only 1 channel
       case 'single':
         return 1;
       case 'double':
@@ -101,7 +173,7 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
     });
   };
 
-  const handleActivateCompany = () => {
+  const handleActivateCompany = async () => {
     if (!companyName.trim()) {
       alert(language === 'EN' ? 'Please enter a company name' : 'Por favor ingrese un nombre de empresa');
       return;
@@ -112,26 +184,57 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
       return;
     }
 
-    const newCompany: Company = {
-      id: Date.now().toString(),
-      name: companyName,
-      type: companyType,
-      channels: selectedChannels,
-      plan: selectedPlan,
-      activationDate: new Date().toISOString().split('T')[0],
-      status: 'Active'
-    };
+    try {
+      const token = localStorage.getItem('access_token');
+      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
-    const updatedCompanies = [...companies, newCompany];
-    setCompanies(updatedCompanies);
+      // Map companyType to ProductType enum
+      const productTypeMap: Record<string, string> = {
+        'product': 'Product',
+        'service': 'Service'
+      };
 
-    // Save to localStorage for WINDOW_3 (Knowledge Base)
-    localStorage.setItem('companies', JSON.stringify(updatedCompanies));
+      const response = await fetch(`${API_URL}/api/v1/companies`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: companyName,
+          product_type: productTypeMap[companyType] || 'Service',
+          channels: selectedChannels,
+          plan: selectedPlan
+        })
+      });
 
-    setCompanyName('');
-    setCompanyType('product');
-    setSelectedChannels([]);
-    setSelectedPlan('single');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to create company');
+      }
+
+      await response.json();
+
+      // Refresh companies list
+      await fetchCompanies();
+
+      alert(language === 'EN'
+        ? `Company "${companyName}" created successfully with ${selectedChannels.length} channel(s)!`
+        : `Empresa "${companyName}" creada exitosamente con ${selectedChannels.length} canal(es)!`
+      );
+
+      // Reset form
+      setCompanyName('');
+      setCompanyType('product');
+      setSelectedChannels([]);
+      setSelectedPlan(currentUserPlan === 'free' ? 'free' : 'single');
+    } catch (error: any) {
+      alert(language === 'EN'
+        ? `Failed to create company: ${error.message}`
+        : `Error al crear empresa: ${error.message}`
+      );
+      console.error('Failed to create company:', error);
+    }
   };
 
   return (
@@ -367,12 +470,14 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
                 <option
                   key={plan.id}
                   value={plan.id}
+                  disabled={plan.disabled}
                   style={{
-                    color: plan.color || 'var(--text-primary)',
-                    fontWeight: plan.id === 'special' ? 600 : 400
+                    color: plan.disabled ? 'var(--text-muted)' : (plan.color || 'var(--text-primary)'),
+                    fontWeight: plan.id === 'special' ? 600 : 400,
+                    opacity: plan.disabled ? 0.5 : 1
                   }}
                 >
-                  {plan.label}
+                  {plan.label} {plan.disabled && currentUserPlan === 'free' ? '(Upgrade Required)' : ''}
                 </option>
               ))}
             </select>
@@ -404,7 +509,7 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 212, 255, 0.3)';
               }}
             >
-              {language === 'EN' ? 'Activate Company' : 'Activar Empresa'}
+              {language === 'EN' ? 'Create Company' : 'Crear Empresa'}
             </button>
           </div>
         </div>

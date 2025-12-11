@@ -35,14 +35,34 @@ async def upload_csv(
     if kb_type not in ["Product", "Service"]:
         raise HTTPException(status_code=400, detail="kb_type must be 'Product' or 'Service'")
 
-    # Validate file type
-    if not file.filename.endswith('.csv'):
-        raise HTTPException(status_code=400, detail="Only CSV files are supported")
+    # Validate file type - support both CSV and Excel
+    if not (file.filename.endswith('.csv') or file.filename.endswith('.xlsx') or file.filename.endswith('.xls')):
+        raise HTTPException(status_code=400, detail="Only CSV and Excel (.xlsx, .xls) files are supported")
 
     try:
-        # Read CSV file
+        # Read file based on extension
         contents = await file.read()
-        df = pd.read_csv(io.BytesIO(contents))
+
+        if file.filename.endswith('.csv'):
+            # Read CSV file - try to auto-detect delimiter (comma or semicolon)
+            try:
+                # First try with comma
+                df = pd.read_csv(io.BytesIO(contents))
+                # If only 1 column, probably wrong delimiter - try semicolon
+                if len(df.columns) == 1:
+                    df = pd.read_csv(io.BytesIO(contents), sep=';')
+            except Exception:
+                # If comma fails, try semicolon
+                df = pd.read_csv(io.BytesIO(contents), sep=';')
+        else:
+            # Read Excel file (both .xlsx and .xls)
+            df = pd.read_excel(io.BytesIO(contents), engine='openpyxl' if file.filename.endswith('.xlsx') else None)
+
+        # Clean up column names - strip whitespace and normalize
+        df.columns = df.columns.str.strip()
+
+        # Log original columns for debugging
+        print(f"📋 CSV Columns detected: {list(df.columns)}")
 
         # Check if company already has a KB of this type
         existing_kb = await supabase_service.check_existing_kb(

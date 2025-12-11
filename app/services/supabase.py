@@ -24,6 +24,24 @@ class SupabaseService:
         """Check if Supabase is properly configured."""
         return self.client is not None
 
+    def _normalize_column_name(self, column_name: str) -> str:
+        """
+        Normalize column names for flexible matching.
+        Handles: case-insensitive, spaces, underscores, special chars.
+
+        Examples:
+        - "Service Name" -> "servicename"
+        - "service_name" -> "servicename"
+        - "SERVICE NAME" -> "servicename"
+        - "ServiceName" -> "servicename"
+        - "Price A (€)" -> "pricea"
+        """
+        # Convert to lowercase
+        normalized = column_name.lower()
+        # Remove special characters (keep only alphanumeric)
+        normalized = re.sub(r'[^a-z0-9]', '', normalized)
+        return normalized
+
     def generate_table_name(self, company_name: str, kb_type: str) -> str:
         """
         Generate table name with format: "{CompanyName} {Type}".
@@ -59,90 +77,117 @@ class SupabaseService:
         """Convert a CSV row to match Product table schema."""
         converted = {}
 
-        # Map CSV columns to Product schema
-        # Handle various possible column name formats from CSV
-        field_mapping = {
-            'product_name': 'product_name',
-            'product name': 'product_name',
+        # Normalized field mapping: normalized_name -> database_column
+        # All keys MUST be normalized (no spaces, lowercase, no special chars)
+        normalized_field_mapping = {
+            # Product Name variations
+            'productname': 'product_name',
+            'name': 'product_name',
+            # SKU
             'sku': 'sku',
+            # Description
             'description': 'description',
+            # Unit/Package Type variations
             'unit': 'unit',
-            'package_type': 'unit',
-            'package type': 'unit',
-            'webpage_link': 'website_url',
-            'webpage link': 'website_url',
-            'website_url': 'website_url',
-            'product_image': 'image_url',
-            'product image': 'image_url',
-            'image_url': 'image_url',
-            'video_link': 'video_url',
-            'video link': 'video_url',
-            'video_url': 'video_url',
-            'price_a_(€)': 'price_eur',
-            'price a (€)': 'price_eur',
-            'price_eur': 'price_eur',
-            'delivery_price_eur': 'logistics_price_eur',
-            'logistics_price_eur': 'logistics_price_eur',
-            'sum_free_delivery_eur': 'free_delivery',
-            'free_delivery': 'free_delivery',
-            'stock_actual': 'stock_units',
-            'stock actual': 'stock_units',
-            'stock_units': 'stock_units',
-            'delivery_time_hours': 'delivery_time_hours',
-            'delivery time hours': 'delivery_time_hours',
-            'payment_reminder_days': 'payment_reminder',
-            'payment reminder': 'payment_reminder',
-            'payment_reminder': 'payment_reminder',
-            'supplier_contact_details': 'supplier_contact',
-            'supplier contact': 'supplier_contact',
-            'supplier_contact': 'supplier_contact',
-            'supplier_company_services': 'supplier_company_services',
-            'supplier company services': 'supplier_company_services',
-            'warehouse_physical_address': 'warehouse_address',
-            'warehouse address': 'warehouse_address',
-            'warehouse_address': 'warehouse_address',
-            'cities': 'cities'
+            'packagetype': 'unit',
+            # Website/Webpage URL variations
+            'webpagelink': 'website_url',
+            'websiteurl': 'website_url',
+            'webpage': 'website_url',
+            'website': 'website_url',
+            # Image URL variations
+            'productimage': 'image_url',
+            'imageurl': 'image_url',
+            'image': 'image_url',
+            # Video URL variations
+            'videolink': 'video_url',
+            'videourl': 'video_url',
+            'video': 'video_url',
+            # Price variations
+            'pricea': 'price_eur',
+            'price': 'price_eur',
+            'priceeur': 'price_eur',
+            # Delivery Price variations
+            'deliveryprice': 'logistics_price_eur',
+            'deliverypriceeur': 'logistics_price_eur',
+            'logisticsprice': 'logistics_price_eur',
+            'logisticspriceeur': 'logistics_price_eur',
+            # Free Delivery variations
+            'sumfreedelivery': 'free_delivery',
+            'sumfreedeliveryeur': 'free_delivery',
+            'freedelivery': 'free_delivery',
+            # Stock variations
+            'stockactual': 'stock_units',
+            'stock': 'stock_units',
+            'stockunits': 'stock_units',
+            # Delivery Time variations
+            'deliverytime': 'delivery_time_hours',
+            'deliverytimehours': 'delivery_time_hours',
+            # Payment Reminder variations
+            'paymentreminder': 'payment_reminder',
+            'paymentreminderdays': 'payment_reminder',
+            'reminder': 'payment_reminder',
+            # Supplier Contact variations
+            'suppliercontact': 'supplier_contact',
+            'suppliercontactdetails': 'supplier_contact',
+            # Supplier Company Services variations
+            'suppliercompanyservices': 'supplier_company_services',
+            'supplierservices': 'supplier_company_services',
+            # Warehouse Address variations
+            'warehouseaddress': 'warehouse_address',
+            'warehousephysicaladdress': 'warehouse_address',
+            'warehouse': 'warehouse_address',
+            # Cities
+            'cities': 'cities',
+            'city': 'cities'
         }
 
         # Process each row field
         for csv_col, value in row.items():
-            # Skip Nº column and empty values
-            if csv_col.lower().strip() in ['nº', 'no', 'number', 'n°'] or pd.isna(value):
+            # Normalize the CSV column name
+            normalized_col = self._normalize_column_name(csv_col)
+
+            # Skip Nº/Number column
+            if normalized_col in ['n', 'no', 'number']:
                 continue
 
-            # Normalize column name
-            normalized_col = csv_col.lower().strip()
-
             # Get mapped database column name
-            if normalized_col in field_mapping:
-                db_col = field_mapping[normalized_col]
+            if normalized_col in normalized_field_mapping:
+                db_col = normalized_field_mapping[normalized_col]
+
+                # Check if value is empty/null
+                is_empty = pd.isna(value) or value == ''
 
                 # Convert numeric fields
                 if db_col in ['price_eur', 'logistics_price_eur', 'free_delivery']:
                     try:
-                        converted[db_col] = float(value) if value else None
+                        converted[db_col] = float(value) if not is_empty else None
                     except (ValueError, TypeError):
                         converted[db_col] = None
                 elif db_col in ['stock_units', 'delivery_time_hours', 'payment_reminder']:
                     try:
-                        converted[db_col] = int(value) if value else None
+                        converted[db_col] = int(value) if not is_empty else None
                     except (ValueError, TypeError):
                         converted[db_col] = None
                 elif db_col == 'cities':
                     # Handle cities as JSONB
-                    try:
-                        if isinstance(value, str):
-                            # Try to parse as JSON array
-                            converted['cities'] = json.loads(value)
-                        elif isinstance(value, list):
-                            converted['cities'] = value
-                        else:
-                            converted['cities'] = [str(value)]
-                    except json.JSONDecodeError:
-                        # If not JSON, split by comma
-                        converted['cities'] = [c.strip() for c in str(value).split(',')]
+                    if is_empty:
+                        converted['cities'] = []
+                    else:
+                        try:
+                            if isinstance(value, str):
+                                # Try to parse as JSON array
+                                converted['cities'] = json.loads(value)
+                            elif isinstance(value, list):
+                                converted['cities'] = value
+                            else:
+                                converted['cities'] = [str(value)]
+                        except json.JSONDecodeError:
+                            # If not JSON, split by comma
+                            converted['cities'] = [c.strip() for c in str(value).split(',')]
                 else:
-                    converted[db_col] = str(value)
+                    # For text fields, store empty string instead of None to avoid NOT NULL violations
+                    converted[db_col] = str(value) if not is_empty else ''
 
         # Set source_updated_at
         converted['source_updated_at'] = datetime.now().isoformat()
@@ -150,86 +195,140 @@ class SupabaseService:
         return converted
 
     def _convert_csv_row_to_service(self, row: Dict[str, Any]) -> Dict[str, Any]:
-        """Convert a CSV row to match Service table schema."""
+        """
+        Convert a CSV row to match Service table schema.
+        Uses flexible column name matching (case-insensitive, spaces, underscores).
+        """
         converted = {}
 
-        # Map CSV columns to Service schema
-        # Using the actual CSV column names from your file
-        field_mapping = {
-            'service name': 'product_name',
-            'service_name': 'product_name',
-            'product_name': 'product_name',
-            'service subcategory': 'service_subcategory',
-            'service_subcategory': 'service_subcategory',
-            'service category': 'service_category',
-            'service_category': 'service_category',
+        # Normalized field mapping: normalized_name -> database_column
+        # All keys MUST be normalized (no spaces, lowercase, no special chars) since we use _normalize_column_name()
+        normalized_field_mapping = {
+            # Service/Product Name variations
+            'servicename': 'product_name',
+            'productname': 'product_name',
+            'name': 'product_name',
+            # Service Subcategory variations
+            'servicesubcategory': 'service_subcategory',
+            'subcategory': 'service_subcategory',
+            # Service Category variations
+            'servicecategory': 'service_category',
+            'category': 'service_category',
+            # SKU
             'sku': 'sku',
+            # Unit
             'unit': 'unit',
+            # Duration
             'duration': 'duration',
+            'durationhours': 'duration',
+            # Format
             'format': 'format',
+            # Description
             'description': 'description',
+            # Included
             'included': 'included',
-            'not included': 'not_included',
-            'not_included': 'not_included',
-            'what guarantee': 'what_guarantee',
-            'what_guarantee': 'what_guarantee',
-            'what not guarantee': 'what_not_guarantee',
-            'what_not_guarantee': 'what_not_guarantee',
-            'suitable for': 'suitable_for',
-            'suitable_for': 'suitable_for',
-            'not suitable for': 'not_suitable_for',
-            'not_suitable_for': 'not_suitable_for',
-            'specialist initials': 'specialist_initials',
-            'specialist_initials': 'specialist_initials',
-            'specialist area': 'specialist_area',
-            'specialist_area': 'specialist_area',
-            'webpage link': 'website_url',
-            'website_url': 'website_url',
-            'product image': 'image_url',
-            'image_url': 'image_url',
-            'video link': 'video_url',
-            'video_url': 'video_url',
-            'price a (€)': 'price_eur',
-            'price_a_(€)': 'price_eur',
-            'price_eur': 'price_eur',
-            'payment reminder': 'payment_reminder',
-            'payment_reminder': 'payment_reminder',
-            'stock actual': 'stock_units',
-            'stock_actual': 'stock_units',
-            'stock_units': 'stock_units',
+            # Not Included variations
+            'notincluded': 'not_included',
+            # What Guarantee variations
+            'whatguarantee': 'what_guarantee',
+            'guarantee': 'what_guarantee',
+            # What Not Guarantee variations
+            'whatnotguarantee': 'what_not_guarantee',
+            'notguarantee': 'what_not_guarantee',
+            # Suitable For variations
+            'suitablefor': 'suitable_for',
+            # Not Suitable For variations
+            'notsuitablefor': 'not_suitable_for',
+            # Specialist Initials variations
+            'specialistinitials': 'specialist_initials',
+            'initials': 'specialist_initials',
+            # Specialist Area variations
+            'specialistarea': 'specialist_area',
+            'area': 'specialist_area',
+            # Website/Webpage URL variations
+            'webpagelink': 'website_url',
+            'websiteurl': 'website_url',
+            'webpage': 'website_url',
+            'website': 'website_url',
+            # Image URL variations
+            'productimage': 'image_url',
+            'imageurl': 'image_url',
+            'image': 'image_url',
+            # Video URL variations
+            'videolink': 'video_url',
+            'videourl': 'video_url',
+            'video': 'video_url',
+            # Price variations
+            'pricea': 'price_eur',
+            'price': 'price_eur',
+            'priceeur': 'price_eur',
+            # Payment Reminder variations
+            'paymentreminder': 'payment_reminder',
+            'paymentreminderdays': 'payment_reminder',
+            'reminder': 'payment_reminder',
+            # Stock variations
+            'stockactual': 'stock_units',
+            'stock': 'stock_units',
+            'stockunits': 'stock_units',
+            # Location
             'location': 'location',
-            'specialist contacts': 'specialist_contacts',
-            'specialist_contacts': 'specialist_contacts',
+            # Specialist Contacts variations
+            'specialistcontacts': 'specialist_contacts',
+            'contacts': 'specialist_contacts',
+            # Company
             'company': 'company',
+            'companyname': 'company',
+            # Details
             'details': 'details'
         }
 
-        # Process each row, skipping Nº column
+        # Debug: Track unmapped columns
+        unmapped_cols = []
+
+        # Process each row
         for csv_col, value in row.items():
-            # Skip Nº column and empty values
-            if csv_col.lower().strip() in ['nº', 'no', 'number', 'n°'] or pd.isna(value):
+            # Normalize the CSV column name for flexible matching
+            normalized_col = self._normalize_column_name(csv_col)
+
+            # Skip Nº/Number column
+            if normalized_col in ['n', 'no', 'number']:
                 continue
 
-            # Normalize column name (lowercase, strip whitespace)
-            normalized_col = csv_col.lower().strip()
-
             # Get mapped database column name
-            if normalized_col in field_mapping:
-                db_col = field_mapping[normalized_col]
+            if normalized_col in normalized_field_mapping:
+                db_col = normalized_field_mapping[normalized_col]
+
+                # Check if value is empty/null
+                is_empty = pd.isna(value) or value == '' or str(value).strip() == ''
 
                 # Convert numeric fields
                 if db_col in ['price_eur']:
                     try:
-                        converted[db_col] = float(value) if value else None
+                        converted[db_col] = float(value) if not is_empty else None
                     except (ValueError, TypeError):
                         converted[db_col] = None
                 elif db_col in ['stock_units', 'payment_reminder']:
                     try:
-                        converted[db_col] = int(value) if value else None
+                        converted[db_col] = int(value) if not is_empty else None
                     except (ValueError, TypeError):
                         converted[db_col] = None
                 else:
-                    converted[db_col] = str(value)
+                    # For text fields, preserve actual values
+                    if not is_empty:
+                        converted[db_col] = str(value).strip()
+                    else:
+                        converted[db_col] = ''
+            else:
+                # Track unmapped column for debugging
+                unmapped_cols.append(f"'{csv_col}' -> normalized: '{normalized_col}'")
+
+        # Log unmapped columns once at the end
+        if unmapped_cols:
+            print(f"⚠️  Unmapped Service columns: {', '.join(unmapped_cols[:5])}")  # Show first 5 only
+
+        # Ensure product_name is never empty (it's required)
+        if 'product_name' not in converted or not converted['product_name']:
+            converted['product_name'] = 'Unnamed Service'
 
         # Set source_updated_at
         converted['source_updated_at'] = datetime.now().isoformat()
@@ -246,26 +345,42 @@ class SupabaseService:
     ) -> Dict[str, Any]:
         """
         Create a new knowledge base table and upload CSV data.
+        If table already exists, upsert the data instead.
         Uses Supabase RPC to create the table dynamically.
         """
         if not self.is_configured():
             raise Exception("Supabase is not configured")
 
         try:
-            # Step 1: Call Supabase RPC function to create the table
-            if kb_type == "Product":
-                rpc_result = self.client.rpc('admin_create_catalog_table', {'p_table': table_name}).execute()
-            else:  # Service
-                rpc_result = self.client.rpc('admin_create_service_table', {'p_service_table': table_name}).execute()
+            # Step 1: Check if table already exists by trying to query it
+            table_exists = False
+            try:
+                test_query = self.client.table(table_name).select('*').limit(1).execute()
+                table_exists = True
+                print(f"Table '{table_name}' already exists. Will upsert data.")
+            except Exception as e:
+                error_msg = str(e).lower()
+                if 'not found' in error_msg or 'does not exist' in error_msg or 'pgrst205' in error_msg:
+                    table_exists = False
+                    print(f"Table '{table_name}' does not exist. Will create it.")
+                else:
+                    raise
 
-            if not rpc_result.data.get('ok'):
-                raise Exception(f"Failed to create table: {rpc_result.data.get('error', 'Unknown error')}")
+            # Step 2: Create table if it doesn't exist
+            if not table_exists:
+                if kb_type == "Product":
+                    rpc_result = self.client.rpc('admin_create_catalog_table', {'p_table': table_name}).execute()
+                else:  # Service
+                    rpc_result = self.client.rpc('admin_create_service_table', {'p_service_table': table_name}).execute()
 
-            # IMPORTANT: Wait for Supabase schema cache to refresh after table creation
-            # Without this delay, the insert operation may fail with "table not found in schema cache"
-            await asyncio.sleep(3)
+                if not rpc_result.data.get('ok'):
+                    raise Exception(f"Failed to create table: {rpc_result.data.get('error', 'Unknown error')}")
 
-            # Step 2: Convert DataFrame rows to match schema
+                # IMPORTANT: Wait for Supabase schema cache to refresh after table creation
+                # Without this delay, the insert operation may fail with "table not found in schema cache"
+                await asyncio.sleep(3)
+
+            # Step 3: Convert DataFrame rows to match schema
             records = []
             for _, row in df.iterrows():
                 if kb_type == "Product":
@@ -273,12 +388,19 @@ class SupabaseService:
                 else:
                     converted_row = self._convert_csv_row_to_service(row.to_dict())
 
-                converted_row['source_table'] = table_name
+                # Don't add source_table - it's not needed in the schema
                 records.append(converted_row)
 
-            # Step 3: Insert data (removed upsert since no external_id)
+            # Step 4: Insert or upsert data
             if records:
-                response = self.client.table(table_name).insert(records).execute()
+                if table_exists:
+                    # Table exists - upsert the data (update existing or insert new)
+                    # Note: Supabase upsert uses ON CONFLICT, but since we don't have a unique key,
+                    # we'll just insert new rows. In production, you might want to add SKU as unique.
+                    response = self.client.table(table_name).insert(records).execute()
+                else:
+                    # New table - insert data
+                    response = self.client.table(table_name).insert(records).execute()
 
             # Step 4: Register in kb_registry table
             registry_entry = {

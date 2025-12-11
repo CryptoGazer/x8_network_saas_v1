@@ -109,16 +109,19 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
 
       if (response.ok && result.knowledge_bases) {
         // Transform backend data to registry format
-        const transformedRegistry: KBRegistryEntry[] = result.knowledge_bases.map((kb: any) => ({
-          kb_id: kb.table_name,
-          kb_name: kb.table_name,
-          kb_type: kb.kb_type,
-          linked_company: kb.company_name,
-          total_rows: kb.row_count || 0,
-          media_count: 0,
-          activated_at: kb.created_at,
-          status: 'Activated'
-        }));
+        // Only show KBs that have data (row_count > 0)
+        const transformedRegistry: KBRegistryEntry[] = result.knowledge_bases
+          .filter((kb: any) => (kb.row_count || 0) > 0)  // Only show activated KBs with data
+          .map((kb: any) => ({
+            kb_id: kb.table_name,
+            kb_name: kb.table_name,
+            kb_type: kb.kb_type,
+            linked_company: kb.company_name,
+            total_rows: kb.row_count || 0,
+            media_count: 0,
+            activated_at: kb.created_at,
+            status: (kb.row_count || 0) > 0 ? 'Activated' : 'Tokens Missing'
+          }));
 
         setRegistry(transformedRegistry);
       } else {
@@ -175,18 +178,66 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
   };
 
   useEffect(() => {
-    const storedCompanies = localStorage.getItem('companies');
-    if (storedCompanies) {
-      const companiesData = JSON.parse(storedCompanies);
-      setCompanies(companiesData.map((c: any) => ({
-        name: c.name,
-        type: c.type || 'product'
-      })));
-    }
+    // Fetch companies from backend API
+    fetchCompaniesFromAPI();
 
     // Fetch KB registry from backend on component mount
     fetchKBRegistry();
   }, []);
+
+  const fetchCompaniesFromAPI = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${API_URL}/api/v1/companies`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const mappedCompanies = data.map((c: any) => ({
+          name: c.name,
+          type: c.company_type || (c.product_type === 'Product' ? 'product' : 'service')
+        }));
+        setCompanies(mappedCompanies);
+
+        // Auto-select the newest company (last in the array)
+        if (data.length > 0) {
+          const newestCompany = data[data.length - 1];
+          setSelectedCompany(newestCompany.name);
+
+          // Set KB type based on company type - prefer Service
+          if (newestCompany.product_type === 'Service') {
+            setKbType('Service');
+          } else if (newestCompany.product_type === 'Product') {
+            setKbType('Product');
+          }
+        }
+
+        // Also update localStorage for compatibility
+        localStorage.setItem('companies', JSON.stringify(data));
+      }
+    } catch (error) {
+      console.error('Failed to fetch companies from API:', error);
+
+      // Fallback to localStorage if API fails
+      const storedCompanies = localStorage.getItem('companies');
+      if (storedCompanies) {
+        const companiesData = JSON.parse(storedCompanies);
+        const mappedCompanies = companiesData.map((c: any) => ({
+          name: c.name,
+          type: c.type || c.company_type || 'product'
+        }));
+        setCompanies(mappedCompanies);
+
+        // Auto-select the newest company
+        if (companiesData.length > 0) {
+          const newestCompany = companiesData[companiesData.length - 1];
+          setSelectedCompany(newestCompany.name);
+        }
+      }
+    }
+  };
 
   // Fetch KB registry when selectedCompany changes
   useEffect(() => {
@@ -740,7 +791,8 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
         </div>
       )}
 
-      {/* {currentRows.length > 0 && (
+      {/* Editable Data Table */}
+      {currentRows.length > 0 && (
         <div className="glass-card" style={{ padding: '0', marginBottom: '24px', borderRadius: '16px', overflowX: 'auto' }}>
           <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>
@@ -761,9 +813,9 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
             >
               + {language === 'EN' ? 'Add Row' : 'Añadir Fila'}
             </button>
-          </div> */}
+          </div>
 
-        {/* {kbType === 'Product' ? (
+        {kbType === 'Product' ? (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
             <thead>
               <tr style={{ background: 'var(--bg-secondary)' }}>
@@ -995,9 +1047,9 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
               ))}
             </tbody>
           </table>
-        )} */}
-      {/* </div> */}
-{/* )} */}
+        )}
+      </div>
+)}
 
       {/* {registry.length > 0 && (
       <div id="kb.registry" className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>

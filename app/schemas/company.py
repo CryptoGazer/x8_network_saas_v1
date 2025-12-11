@@ -10,7 +10,8 @@ class CompanyBase(BaseModel):
 
 
 class CompanyCreate(CompanyBase):
-    pass
+    channels: List[str] = []  # List of channel IDs: whatsapp, telegram, instagram, facebook, gmail, tiktok
+    plan: str = "free"  # User's subscription plan: free, single, double, growth, special
 
 
 class CompanyUpdate(BaseModel):

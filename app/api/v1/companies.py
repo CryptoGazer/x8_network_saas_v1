@@ -7,7 +7,7 @@ from app.schemas.company import Company as CompanySchema, CompanyCreate, Company
 from app.core.deps import get_current_user
 from app.models.user import User
 from app.models.company import Company
-from app.models.channel import Channel
+from app.models.channel import Channel, ChannelPlatform, ChannelStatus
 from app.core.config import settings
 import random
 import string
@@ -128,8 +128,51 @@ async def create_company(
         table_suffix = company_data.product_type.capitalize()
         await create_supabase_table(company_data.name, table_suffix)
 
+    # Create channel rows based on selected channels and plan
+    # Map channel IDs to ChannelPlatform enum
+    channel_platform_map = {
+        "whatsapp": ChannelPlatform.WHATSAPP,
+        "telegram": ChannelPlatform.TELEGRAM,
+        "instagram": ChannelPlatform.INSTAGRAM,
+        "facebook": ChannelPlatform.FACEBOOK,
+        "gmail": ChannelPlatform.EMAIL,
+        "tiktok": ChannelPlatform.TIKTOK
+    }
+
+    # Validate channel count based on plan
+    max_channels = {
+        "free": 1,
+        "single": 1,
+        "double": 2,
+        "growth": 4,
+        "special": 6  # Special offer allows all channels
+    }
+
+    plan_max = max_channels.get(company_data.plan.lower(), 1)
+    if len(company_data.channels) > plan_max:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Plan '{company_data.plan}' allows maximum {plan_max} channel(s), but {len(company_data.channels)} were selected"
+        )
+
+    # Create Channel rows for each selected channel
+    created_channels = []
+    for channel_id in company_data.channels:
+        if channel_id.lower() in channel_platform_map:
+            channel = Channel(
+                company_id=company.id,
+                user_id=current_user.id,
+                platform=channel_platform_map[channel_id.lower()],
+                is_active=True,
+                status=ChannelStatus.DISCONNECTED
+            )
+            db.add(channel)
+            created_channels.append(channel_id.lower())
+
+    await db.commit()
+
     company_dict = CompanySchema.model_validate(company).model_dump()
-    company_dict["channels"] = []
+    company_dict["channels"] = created_channels
 
     return CompanySchema(**company_dict)
 
