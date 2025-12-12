@@ -1,3 +1,4 @@
+import csv
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -9,6 +10,9 @@ from datetime import datetime
 from app.core.deps import get_current_user, get_db
 from app.models.user import User
 from app.services.supabase import supabase_service
+
+from uuid import UUID
+from pprint import pprint
 
 router = APIRouter(prefix="/api/v1/knowledge-base", tags=["knowledge-base"])
 
@@ -44,19 +48,43 @@ async def upload_csv(
         contents = await file.read()
 
         if file.filename.endswith('.csv'):
-            # Read CSV file - try to auto-detect delimiter (comma or semicolon)
-            try:
-                # First try with comma
-                df = pd.read_csv(io.BytesIO(contents))
-                # If only 1 column, probably wrong delimiter - try semicolon
-                if len(df.columns) == 1:
-                    df = pd.read_csv(io.BytesIO(contents), sep=';')
-            except Exception:
-                # If comma fails, try semicolon
-                df = pd.read_csv(io.BytesIO(contents), sep=';')
+            # Read CSV file - try multiple encodings and delimiters
+            # Try common encodings: utf-8, utf-8-sig (with BOM), latin-1, cp1252
+            delimiters_to_try = [',', ';', '\t']
+
+            df = None
+            for delimiter in delimiters_to_try:
+                try:
+                    print("Uploaded filename:", file.filename)
+                    print("File bytes len:", len(contents))
+                    print(contents[:300])  # первые байты/символы
+                    tmp = pd.read_csv(
+                        io.BytesIO(contents),
+                        encoding="utf-8",
+                        sep=delimiter,
+                        engine="python",
+                        quotechar='"',
+                        quoting=csv.QUOTE_MINIMAL,
+                    )
+                    print("TRY delimiter", repr(delimiter), "->", tmp.shape)
+                    if tmp.shape[1] > 1:
+                        df = tmp
+                        print(f"✅ picked delimiter {repr(delimiter)}")
+                        break
+                except Exception as e:
+                    print("ERROR for delimiter", repr(delimiter), ":", e)
+
+            if df is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Failed to parse CSV file. Please check the file encoding and delimiter."
+                )
         else:
             # Read Excel file (both .xlsx and .xls)
-            df = pd.read_excel(io.BytesIO(contents), engine='openpyxl' if file.filename.endswith('.xlsx') else None)
+            df = pd.read_excel(
+                io.BytesIO(contents),
+                engine='openpyxl' if file.filename.endswith('.xlsx') else None
+            )
 
         # Clean up column names - strip whitespace and normalize
         df.columns = df.columns.str.strip()
@@ -64,18 +92,9 @@ async def upload_csv(
         # Log original columns for debugging
         print(f"📋 CSV Columns detected: {list(df.columns)}")
 
-        # Check if company already has a KB of this type
-        existing_kb = await supabase_service.check_existing_kb(
-            user_id=current_user.id,
-            company_name=company_name,
-            kb_type=kb_type
-        )
-
-        if existing_kb and existing_kb.get('count', 0) > 0:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Company '{company_name}' already has a {kb_type} knowledge base. Only one {kb_type} KB per company is allowed."
-            )
+        # Allow multiple CSV uploads - use UPSERT logic based on SKU field
+        # If SKU exists: UPDATE that row with new data
+        # If SKU doesn't exist: INSERT new row
 
         # Create table name
         table_name = supabase_service.generate_table_name(company_name, kb_type)
@@ -229,7 +248,7 @@ async def add_row_to_kb(
 @router.patch("/row/{table_name}/{row_id}")
 async def update_row_in_kb(
     table_name: str,
-    row_id: int,
+    row_id: UUID,
     row_data: dict,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -243,7 +262,7 @@ async def update_row_in_kb(
     try:
         result = await supabase_service.update_row(
             table_name=table_name,
-            row_id=row_id,
+            row_id=str(row_id),
             row_data=row_data,
             user_id=current_user.id
         )
@@ -261,7 +280,7 @@ async def update_row_in_kb(
 @router.delete("/row/{table_name}/{row_id}")
 async def delete_row_from_kb(
     table_name: str,
-    row_id: int,
+    row_id: UUID,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -274,7 +293,7 @@ async def delete_row_from_kb(
     try:
         result = await supabase_service.delete_row(
             table_name=table_name,
-            row_id=row_id,
+            row_id=str(row_id),
             user_id=current_user.id
         )
 

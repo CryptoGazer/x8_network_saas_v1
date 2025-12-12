@@ -7,7 +7,6 @@ interface KnowledgeBaseProps {
 }
 
 interface ProductRow {
-  product_no: string;
   product_name: string;
   sku: string;
   description: string;
@@ -30,13 +29,12 @@ interface ProductRow {
 }
 
 interface ServiceRow {
-  service_no: string;
-  service_name: string;
+  product_name: string;
   sku: string;
   service_subcategory: string;
   service_category: string;
   unit: string;
-  duration_hours: number;
+  duration: string;
   format: string;
   description: string;
   included: string;
@@ -79,15 +77,15 @@ interface Company {
 
 export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNavigate }) => {
   const [kbType, setKbType] = useState<'Product' | 'Service'>('Product');
-  const [selectedCompany, setSelectedCompany] = useState<string>('');
+  const [selectedCompany, setSelectedCompany] = useState<string>(() => {
+    // Initialize from localStorage
+    return localStorage.getItem('kb_selected_company') || '';
+  });
   const [companies, setCompanies] = useState<Company[]>([]);
   const [productRows, setProductRows] = useState<ProductRow[]>([]);
   const [serviceRows, setServiceRows] = useState<ServiceRow[]>([]);
   const [registry, setRegistry] = useState<KBRegistryEntry[]>([]);
-  const [showImportModal, setShowImportModal] = useState(false);
   const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
-  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
-  const [csvData, setCsvData] = useState<any[]>([]);
   const [isLoadingRegistry, setIsLoadingRegistry] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
@@ -201,16 +199,25 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
         }));
         setCompanies(mappedCompanies);
 
-        // Auto-select the newest company (last in the array)
-        if (data.length > 0) {
+        // Only auto-select if there's no saved selection
+        const savedCompany = localStorage.getItem('kb_selected_company');
+        if (!savedCompany && data.length > 0) {
           const newestCompany = data[data.length - 1];
           setSelectedCompany(newestCompany.name);
+          localStorage.setItem('kb_selected_company', newestCompany.name);
 
           // Set KB type based on company type - prefer Service
           if (newestCompany.product_type === 'Service') {
             setKbType('Service');
           } else if (newestCompany.product_type === 'Product') {
             setKbType('Product');
+          }
+        } else if (savedCompany) {
+          // Verify saved company still exists
+          const companyExists = data.some((c: any) => c.name === savedCompany);
+          if (!companyExists) {
+            localStorage.removeItem('kb_selected_company');
+            setSelectedCompany('');
           }
         }
 
@@ -230,10 +237,19 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
         }));
         setCompanies(mappedCompanies);
 
-        // Auto-select the newest company
-        if (companiesData.length > 0) {
+        // Only auto-select if there's no saved selection
+        const savedCompany = localStorage.getItem('kb_selected_company');
+        if (!savedCompany && companiesData.length > 0) {
           const newestCompany = companiesData[companiesData.length - 1];
           setSelectedCompany(newestCompany.name);
+          localStorage.setItem('kb_selected_company', newestCompany.name);
+        } else if (savedCompany) {
+          // Verify saved company still exists
+          const companyExists = companiesData.some((c: any) => c.name === savedCompany);
+          if (!companyExists) {
+            localStorage.removeItem('kb_selected_company');
+            setSelectedCompany('');
+          }
         }
       }
     }
@@ -285,7 +301,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
     try {
       const token = localStorage.getItem('access_token');
       const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
-      const tableName = `${selectedCompany} ${kbType}`;
+      const tableName = `DB ${kbType} ${selectedCompany}`;
 
       const newRow = kbType === 'Product' ? {
         product_name: 'New Product',
@@ -373,7 +389,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
     try {
       const token = localStorage.getItem('access_token');
       const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
-      const tableName = `${selectedCompany} ${kbType}`;
+      const tableName = `DB ${kbType} ${selectedCompany}`;
       const rowId = (currentRow as any).id;
 
       const response = await fetch(`${API_URL}/api/v1/knowledge-base/row/${encodeURIComponent(tableName)}/${rowId}`, {
@@ -401,75 +417,25 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.csv';
-    input.onchange = (e: any) => {
+    input.onchange = async (e: any) => {
       const file = e.target.files[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const text = event.target?.result as string;
-          const lines = text.split('\n').filter(line => line.trim());
-          const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
-          setCsvHeaders(headers);
-          const data = lines.slice(1).map(line => {
-            const values = line.split(',').map(v => v.trim());
-            const row: any = {};
-            headers.forEach((h, i) => {
-              row[h] = values[i] || '';
-            });
-            return row;
-          });
-          setCsvData(data);
-          setShowImportModal(true);
-        };
-        reader.readAsText(file);
+        // Don't parse CSV in frontend - just upload the raw file to backend
+        // Backend will handle encoding, delimiters, quotes, etc. properly
+        await uploadCSVFile(file);
       }
     };
     input.click();
   };
 
-  const confirmImport = async () => {
-    if (!csvData || csvData.length === 0) {
-      alert(language === 'EN' ? 'No data to upload' : 'No hay datos para cargar');
-      return;
-    }
-
+  const uploadCSVFile = async (file: File) => {
     if (!selectedCompany) {
       alert(language === 'EN' ? 'Please select a company' : 'Por favor selecciona una empresa');
       return;
     }
 
-    // Check if company already has this KB type
-    const existingKB = registry.find(
-      r => r.linked_company === selectedCompany && r.kb_type === kbType
-    );
-
-    if (existingKB) {
-      alert(language === 'EN'
-        ? `This company already has a ${kbType} knowledge base. Only one ${kbType} KB per company is allowed.`
-        : `Esta empresa ya tiene una base de conocimiento de ${kbType}. Solo se permite una KB de ${kbType} por empresa.`
-      );
-      return;
-    }
-
     try {
-      // Convert csvData back to CSV format
-      const csvContent = [
-        csvHeaders.join(','),
-        ...csvData.map(row => csvHeaders.map(h => {
-          const value = row[h] || '';
-          // Escape values that contain commas or quotes
-          if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
-            return `"${value.replace(/"/g, '""')}"`;
-          }
-          return value;
-        }).join(','))
-      ].join('\n');
-
-      // Create a Blob from the CSV content
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const file = new File([blob], `kb_${selectedCompany}_${kbType}.csv`, { type: 'text/csv' });
-
-      // Create FormData
+      // Create FormData with the raw file - backend will parse it
       const formData = new FormData();
       formData.append('file', file);
       formData.append('company_name', selectedCompany);
@@ -494,17 +460,12 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
       }
 
       alert(language === 'EN'
-        ? `Knowledge base created successfully! ${result.rows_imported} rows imported.`
-        : `¡Base de conocimiento creada exitosamente! ${result.rows_imported} filas importadas.`
+        ? `Knowledge base uploaded successfully! ${result.rows_imported} rows imported.`
+        : `¡Base de conocimiento cargada exitosamente! ${result.rows_imported} filas importadas.`
       );
 
       // Refresh the registry
       await fetchKBRegistry();
-
-      // Close modal and reset state
-      setShowImportModal(false);
-      setCsvData([]);
-      setCsvHeaders([]);
 
     } catch (error: any) {
       alert(language === 'EN'
@@ -520,21 +481,20 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
 
     if (kbType === 'Product') {
       headers = [
-        'product_no', 'product_name', 'sku', 'description', 'package_type', 'cities',
+        'product_name', 'sku', 'description', 'package_type', 'cities',
         'webpage_link', 'product_image', 'video_link', 'price_a_eur', 'delivery_price_eur',
         'sum_free_delivery_eur', 'stock_actual', 'delivery_time_hours', 'payment_reminder_days',
-        'supplier_contact_details', 'supplier_company_services', 'warehouse_physical_address',
-        'is_active', 'last_updated'
+        'supplier_contact_details', 'supplier_company_services', 'warehouse_physical_address'
       ];
       rows = productRows;
     } else {
       headers = [
-        'service_no', 'service_name', 'sku', 'service_subcategory', 'service_category', 'unit',
-        'duration_hours', 'format', 'description', 'included', 'not_included', 'what_guarantee',
+        'product_name', 'sku', 'service_subcategory', 'service_category', 'unit',
+        'duration', 'format', 'description', 'included', 'not_included', 'what_guarantee',
         'what_not_guarantee', 'suitable_for', 'not_suitable_for', 'specialist_initials',
         'specialist_area', 'webpage_link', 'product_image', 'video_link', 'price_a_eur',
         'payment_reminder_days', 'stock_actual', 'location', 'specialist_contacts',
-        'company_name', 'details', 'is_active', 'last_updated'
+        'company_name', 'details'
       ];
       rows = serviceRows;
     }
@@ -581,7 +541,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
     try {
       const token = localStorage.getItem('access_token');
       const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
-      const tableName = `${selectedCompany} ${kbType}`;
+      const tableName = `DB ${kbType} ${selectedCompany}`;
       const rowId = (currentRow as any).id;
 
       // Prepare update payload with only the changed field
@@ -633,7 +593,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
     try {
       const token = localStorage.getItem('access_token');
       const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
-      const tableName = `${selectedCompany} ${kbType}`;
+      const tableName = `DB ${kbType} ${selectedCompany}`;
       const rowId = (currentRow as any).id;
 
       // Prepare update payload with only the changed field
@@ -772,7 +732,12 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
             <select
               id="kb.companySelector"
               value={selectedCompany}
-              onChange={(e) => setSelectedCompany(e.target.value)}
+              onChange={(e) => {
+                const newCompany = e.target.value;
+                setSelectedCompany(newCompany);
+                // Persist to localStorage
+                localStorage.setItem('kb_selected_company', newCompany);
+              }}
               style={{
                 width: '100%',
                 padding: '10px',
@@ -934,7 +899,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
       {/* Editable Data Table */}
       {currentRows.length > 0 && (
         <div className="glass-card" style={{ padding: '0', marginBottom: '24px', borderRadius: '16px', overflowX: 'auto' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', left: 0, background: 'var(--bg-primary)', zIndex: 15 }}>
             <h2 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>
               {selectedCompany ? `${selectedCompany} - ${kbType}` : `DB ${kbType}`}
             </h2>
@@ -948,7 +913,8 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
                 color: 'var(--brand-cyan)',
                 fontSize: '12px',
                 fontWeight: 500,
-                cursor: 'pointer'
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
               }}
             >
               + {language === 'EN' ? 'Add Row' : 'Añadir Fila'}
@@ -959,8 +925,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
             <thead>
               <tr style={{ background: 'var(--bg-secondary)' }}>
-                <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', minWidth: '120px', position: 'sticky', left: 0, background: 'var(--bg-secondary)', zIndex: 10 }}>Product No</th>
-                <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', minWidth: '200px' }}>Product Name</th>
+                <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', minWidth: '200px', position: 'sticky', left: 0, background: 'var(--bg-secondary)', zIndex: 10 }}>Product Name</th>
                 <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', minWidth: '80px' }}>SKU</th>
                 <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', minWidth: '250px' }}>Description</th>
                 <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', minWidth: '100px' }}>Package Type</th>
@@ -985,9 +950,6 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
               {productRows.map((row, idx) => (
                 <tr key={idx} style={{ borderBottom: '1px solid var(--glass-border)' }}>
                   <td style={{ padding: '8px', position: 'sticky', left: 0, background: 'var(--bg-primary)', zIndex: 5 }}>
-                    <input value={row.product_no} onChange={(e) => updateProductCell(idx, 'product_no', e.target.value)} style={{ width: '100%', padding: '6px', background: 'var(--bg-secondary)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '12px' }} />
-                  </td>
-                  <td style={{ padding: '8px' }}>
                     <input value={row.product_name} onChange={(e) => updateProductCell(idx, 'product_name', e.target.value)} style={{ width: '100%', padding: '6px', background: 'var(--bg-secondary)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '12px' }} />
                   </td>
                   <td style={{ padding: '8px' }}>
@@ -1057,13 +1019,12 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
             <thead>
               <tr style={{ background: 'var(--bg-secondary)' }}>
-                <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', minWidth: '120px', position: 'sticky', left: 0, background: 'var(--bg-secondary)', zIndex: 10 }}>Service No</th>
-                <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', minWidth: '200px' }}>Service Name</th>
+                <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', minWidth: '200px', position: 'sticky', left: 0, background: 'var(--bg-secondary)', zIndex: 10 }}>Service Name</th>
                 <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', minWidth: '80px' }}>SKU</th>
                 <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', minWidth: '150px' }}>Subcategory</th>
                 <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', minWidth: '150px' }}>Category</th>
                 <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', minWidth: '80px' }}>Unit</th>
-                <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', minWidth: '100px' }}>Duration (h)</th>
+                <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', minWidth: '150px' }}>Duration</th>
                 <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', minWidth: '120px' }}>Format</th>
                 <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', minWidth: '250px' }}>Description</th>
                 <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', minWidth: '200px' }}>Included</th>
@@ -1092,10 +1053,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
               {serviceRows.map((row, idx) => (
                 <tr key={idx} style={{ borderBottom: '1px solid var(--glass-border)' }}>
                   <td style={{ padding: '8px', position: 'sticky', left: 0, background: 'var(--bg-primary)', zIndex: 5 }}>
-                    <input value={row.service_no} onChange={(e) => updateServiceCell(idx, 'service_no', e.target.value)} style={{ width: '100%', padding: '6px', background: 'var(--bg-secondary)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '12px' }} />
-                  </td>
-                  <td style={{ padding: '8px' }}>
-                    <input value={row.service_name} onChange={(e) => updateServiceCell(idx, 'service_name', e.target.value)} style={{ width: '100%', padding: '6px', background: 'var(--bg-secondary)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '12px' }} />
+                    <input value={row.product_name} onChange={(e) => updateServiceCell(idx, 'product_name', e.target.value)} style={{ width: '100%', padding: '6px', background: 'var(--bg-secondary)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '12px' }} />
                   </td>
                   <td style={{ padding: '8px' }}>
                     <input value={row.sku} onChange={(e) => updateServiceCell(idx, 'sku', e.target.value)} style={{ width: '100%', padding: '6px', background: 'var(--bg-secondary)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '12px' }} />
@@ -1110,7 +1068,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
                     <input value={row.unit} onChange={(e) => updateServiceCell(idx, 'unit', e.target.value)} style={{ width: '100%', padding: '6px', background: 'var(--bg-secondary)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '12px' }} />
                   </td>
                   <td style={{ padding: '8px' }}>
-                    <input type="number" value={row.duration_hours} onChange={(e) => updateServiceCell(idx, 'duration_hours', parseFloat(e.target.value) || 0)} style={{ width: '100%', padding: '6px', background: 'var(--bg-secondary)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '12px' }} />
+                    <input value={row.duration} onChange={(e) => updateServiceCell(idx, 'duration', e.target.value)} style={{ width: '100%', padding: '6px', background: 'var(--bg-secondary)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '12px' }} />
                   </td>
                   <td style={{ padding: '8px' }}>
                     <input value={row.format} onChange={(e) => updateServiceCell(idx, 'format', e.target.value)} style={{ width: '100%', padding: '6px', background: 'var(--bg-secondary)', border: '1px solid var(--glass-border)', borderRadius: '4px', color: 'var(--text-primary)', fontSize: '12px' }} />
@@ -1190,144 +1148,6 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
         )}
       </div>
 )}
-
-      {/* {registry.length > 0 && (
-      <div id="kb.registry" className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Database size={20} />
-          {language === 'EN' ? 'KB Registry' : 'Registro de KB'}
-        </h2>
-
-        {registry.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)', fontSize: '14px' }}>
-            {language === 'EN' ? 'No activated KBs yet' : 'No hay KBs activados aún'}
-          </div>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid var(--glass-border)' }}>
-                <th style={{ padding: '12px 8px', textAlign: 'left', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>KB ID</th>
-                <th style={{ padding: '12px 8px', textAlign: 'left', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>KB Name</th>
-                <th style={{ padding: '12px 8px', textAlign: 'left', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Type</th>
-                <th style={{ padding: '12px 8px', textAlign: 'left', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Company</th>
-                <th style={{ padding: '12px 8px', textAlign: 'left', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Rows</th>
-                <th style={{ padding: '12px 8px', textAlign: 'left', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Media</th>
-                <th style={{ padding: '12px 8px', textAlign: 'left', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Activated</th>
-                <th style={{ padding: '12px 8px', textAlign: 'left', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {registry.map((entry) => (
-                <tr key={entry.kb_id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                  <td style={{ padding: '12px 8px', fontSize: '13px', color: 'var(--brand-cyan)', fontWeight: 600 }}>{entry.kb_id}</td>
-                  <td style={{ padding: '12px 8px', fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>{entry.kb_name}</td>
-                  <td style={{ padding: '12px 8px' }}>
-                    <span style={{
-                      padding: '4px 8px',
-                      background: entry.kb_type === 'Product' ? 'rgba(0, 212, 255, 0.1)' : 'rgba(132, 94, 247, 0.1)',
-                      color: entry.kb_type === 'Product' ? 'var(--brand-cyan)' : '#845EF7',
-                      borderRadius: '4px',
-                      fontSize: '11px',
-                      fontWeight: 600
-                    }}>
-                      {entry.kb_type}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px 8px', fontSize: '13px', color: 'var(--text-secondary)' }}>{entry.linked_company}</td>
-                  <td style={{ padding: '12px 8px', fontSize: '13px', color: 'var(--text-secondary)' }}>{entry.total_rows}</td>
-                  <td style={{ padding: '12px 8px', fontSize: '13px', color: 'var(--text-secondary)' }}>{entry.media_count}</td>
-                  <td style={{ padding: '12px 8px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                    {new Date(entry.activated_at).toLocaleDateString()}
-                  </td>
-                  <td style={{ padding: '12px 8px' }}>
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      background: entry.status === 'Activated' ? 'rgba(36, 211, 154, 0.1)' : entry.status === 'Tokens Missing' ? 'rgba(255, 209, 102, 0.1)' : 'rgba(255, 92, 92, 0.1)',
-                      color: entry.status === 'Activated' ? 'var(--success-green)' : entry.status === 'Tokens Missing' ? 'var(--accent-yellow)' : 'var(--danger-red)'
-                    }}>
-                      {entry.status === 'Activated' ? <Check size={12} /> : entry.status === 'Tokens Missing' ? <AlertCircle size={12} /> : <X size={12} />}
-                      {entry.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-      )} */}
-
-      {showImportModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.7)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '24px'
-        }} onClick={() => setShowImportModal(false)}>
-          <div className="glass-card" style={{ padding: '32px', maxWidth: '700px', width: '100%', maxHeight: '90vh', overflowY: 'auto', borderRadius: '16px' }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
-              {language === 'EN' ? 'CSV Import - Mapping Preview' : 'Importar CSV - Vista Previa de Mapeo'}
-            </h3>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '13px' }}>
-              {language === 'EN'
-                ? `Found ${csvData.length} rows with ${csvHeaders.length} columns. Verify mapping below and confirm import.`
-                : `Se encontraron ${csvData.length} filas con ${csvHeaders.length} columnas. Verifique el mapeo y confirme la importación.`}
-            </p>
-            <div style={{ background: 'var(--bg-secondary)', padding: '12px', borderRadius: '8px', marginBottom: '20px', maxHeight: '300px', overflowY: 'auto' }}>
-              <div style={{ fontSize: '12px', fontFamily: 'monospace', color: 'var(--text-primary)' }}>
-                <strong>{language === 'EN' ? 'Detected columns:' : 'Columnas detectadas:'}</strong><br />
-                {csvHeaders.join(', ')}
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => { setShowImportModal(false); setCsvData([]); setCsvHeaders([]); }}
-                style={{
-                  padding: '10px 20px',
-                  background: 'transparent',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: '8px',
-                  color: 'var(--text-primary)',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  cursor: 'pointer'
-                }}
-              >
-                {language === 'EN' ? 'Cancel' : 'Cancelar'}
-              </button>
-              <button
-                onClick={confirmImport}
-                style={{
-                  padding: '10px 20px',
-                  background: 'linear-gradient(135deg, var(--brand-cyan), var(--brand-teal))',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#FFFFFF',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                {language === 'EN' ? 'Confirm Import' : 'Confirmar Importación'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showBulkUploadModal && (
         <div style={{

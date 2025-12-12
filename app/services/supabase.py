@@ -1,4 +1,5 @@
 from supabase import create_client, Client
+from uuid import UUID
 from app.core.config import settings
 from typing import Optional, Dict, List, Any
 import pandas as pd
@@ -48,29 +49,33 @@ class SupabaseService:
         Example: "DB Service AIAgent Service" or "DB Service AIAgent Product"
         """
         # Keep original company name and add space + capitalized type
-        # This matches the required format: "{CompanyName} Product" or "{CompanyName} Service"
-        return f"{company_name} {kb_type}"
+        # This matches the required format: "DB Product {CompanyName}" or "DB Service {CompanyName}"
+        return f"DB {kb_type} {company_name}"
 
     async def check_existing_kb(self, user_id: int, company_name: str, kb_type: str) -> Dict[str, Any]:
-        """Check if a KB of this type already exists for this company."""
+        """
+        Check if a KB table already exists by trying to query it.
+        Since we don't use kb_registry, we directly check if the table exists.
+        """
         if not self.is_configured():
             raise Exception("Supabase is not configured")
 
         try:
-            # Query the kb_registry table
-            response = self.client.table('kb_registry')\
-                .select('*', count='exact')\
-                .eq('user_id', user_id)\
-                .eq('company_name', company_name)\
-                .eq('kb_type', kb_type)\
-                .execute()
+            table_name = self.generate_table_name(company_name, kb_type)
+            # Try to query the table - if it exists, we'll get a response
+            response = self.client.table(table_name).select('*', count='exact').limit(1).execute()
 
+            # Table exists
             return {
-                "count": response.count if hasattr(response, 'count') else len(response.data),
-                "existing": response.data
+                "count": 1,
+                "existing": [{"table_name": table_name}]
             }
         except Exception as e:
-            # If table doesn't exist, return count 0
+            # Table doesn't exist or error accessing it
+            error_msg = str(e).lower()
+            if 'not found' in error_msg or 'does not exist' in error_msg or 'pgrst' in error_msg:
+                return {"count": 0, "existing": []}
+            # For other errors, also return 0
             return {"count": 0, "existing": []}
 
     def _convert_csv_row_to_product(self, row: Dict[str, Any]) -> Dict[str, Any]:
@@ -327,8 +332,8 @@ class SupabaseService:
             print(f"⚠️  Unmapped Service columns: {', '.join(unmapped_cols[:5])}")  # Show first 5 only
 
         # Ensure product_name is never empty (it's required)
-        if 'product_name' not in converted or not converted['product_name']:
-            converted['product_name'] = 'Unnamed Service'
+        # if 'product_name' not in converted or not converted['product_name']:
+        #     converted['product_name'] = 'Unnamed Service'
 
         # Set source_updated_at
         converted['source_updated_at'] = datetime.now().isoformat()
@@ -380,48 +385,67 @@ class SupabaseService:
                 # Without this delay, the insert operation may fail with "table not found in schema cache"
                 await asyncio.sleep(3)
 
-            # Step 3: Convert DataFrame rows to match schema
+            # Step 3: Clean DataFrame - remove empty rows AGGRESSIVELY
+            # A row is considered empty if ALL its values are NaN/empty
+            df_cleaned = df.dropna(how='all')  # Drop rows where ALL columns are NaN
+
+            # Find the actual name column (Service Name, Product Name, or just Name)
+            name_column = None
+            for col in df_cleaned.columns:
+                col_normalized = self._normalize_column_name(col)
+                if col_normalized in ['servicename', 'productname', 'name']:
+                    name_column = col
+                    break
+
+            # Filter out rows where the name column is empty
+            if name_column:
+                df_cleaned = df_cleaned[
+                    df_cleaned[name_column].notna() &
+                    (df_cleaned[name_column] != '') &
+                    (df_cleaned[name_column].astype(str).str.strip() != '')
+                ]
+                print(f"📊 Original DataFrame rows: {len(df)}, After filtering by '{name_column}': {len(df_cleaned)}")
+            else:
+                print(f"⚠️  WARNING: Could not find name column for filtering. Processing all {len(df_cleaned)} rows.")
+                print(f"📊 Original DataFrame rows: {len(df)}, After cleaning: {len(df_cleaned)}")
+
+            # Step 4: Convert DataFrame rows to match schema
             records = []
-            for _, row in df.iterrows():
-                if kb_type == "Product":
-                    converted_row = self._convert_csv_row_to_product(row.to_dict())
-                else:
-                    converted_row = self._convert_csv_row_to_service(row.to_dict())
+            for idx, row in df_cleaned.iterrows():
+                try:
+                    if kb_type == "Product":
+                        converted_row = self._convert_csv_row_to_product(row.to_dict())
+                    else:
+                        converted_row = self._convert_csv_row_to_service(row.to_dict())
 
-                # Don't add source_table - it's not needed in the schema
-                records.append(converted_row)
+                    # Only add if the row has a product_name (required field)
+                    if converted_row.get('product_name') and converted_row['product_name'].strip():
+                        records.append(converted_row)
+                    else:
+                        print(f"⚠️  Skipping row {idx}: No product_name found")
+                except Exception as e:
+                    print(f"⚠️  Error converting row {idx}: {str(e)}")
+                    continue
 
-            # Step 4: Insert or upsert data
+            print(f"✅ Valid records to insert: {len(records)}")
+
+            # Step 4: Insert or upsert data based on SKU field
             if records:
                 if table_exists:
-                    # Table exists - upsert the data (update existing or insert new)
-                    # Note: Supabase upsert uses ON CONFLICT, but since we don't have a unique key,
-                    # we'll just insert new rows. In production, you might want to add SKU as unique.
-                    response = self.client.table(table_name).insert(records).execute()
+                    # Table exists - UPSERT the data (update existing by SKU or insert new)
+                    # Supabase upsert() uses ON CONFLICT to handle duplicates
+                    # The 'sku' field will be used as the conflict resolution key
+                    response = self.client.table(table_name).upsert(
+                        records,
+                        on_conflict='sku'  # If SKU matches, update; otherwise insert
+                    ).execute()
+                    print(f"✅ UPSERT completed: {len(records)} records processed (updated existing or inserted new)")
                 else:
                     # New table - insert data
                     response = self.client.table(table_name).insert(records).execute()
+                    print(f"✅ INSERT completed: {len(records)} records inserted")
 
-            # Step 4: Register in kb_registry table
-            registry_entry = {
-                'user_id': user_id,
-                'company_name': company_name,
-                'kb_type': kb_type,
-                'table_name': table_name,
-                'row_count': len(records),
-                'created_at': datetime.now().isoformat(),
-                'updated_at': datetime.now().isoformat()
-            }
-
-            # Upsert registry entry
-            try:
-                self.client.table('kb_registry').upsert(
-                    registry_entry,
-                    on_conflict='user_id,company_name,kb_type'
-                ).execute()
-            except Exception:
-                # If kb_registry table doesn't exist, skip registration
-                pass
+            # No kb_registry needed - tables are just named "DB {kb_type} {company_name}"
 
             return {
                 "success": True,
@@ -437,22 +461,57 @@ class SupabaseService:
         user_id: int,
         company_name: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """List all knowledge bases for a user."""
+        """
+        List all knowledge bases for a user by checking which tables exist in Supabase.
+
+        Since we use naming convention "DB {kb_type} {company_name}", we can check
+        if tables exist for each company.
+        """
         if not self.is_configured():
             raise Exception("Supabase is not configured")
 
-        try:
-            query = self.client.table('kb_registry').select('*').eq('user_id', user_id)
+        kbs = []
 
-            if company_name:
-                query = query.eq('company_name', company_name)
-
-            response = query.execute()
-            return response.data
-
-        except Exception:
-            # If table doesn't exist, return empty list
+        # If company_name is provided, only check for that company's KBs
+        # Otherwise, we'd need to get list of companies from PostgreSQL
+        if company_name:
+            companies_to_check = [company_name]
+        else:
+            # For now, if no company specified, return empty list
+            # In production, you'd query PostgreSQL for all user's companies
             return []
+
+        # Check for both Product and Service tables for each company
+        for company in companies_to_check:
+            for kb_type in ["Product", "Service"]:
+                table_name = self.generate_table_name(company, kb_type)
+
+                try:
+                    # Try to query the table and get row count
+                    response = self.client.table(table_name).select('*', count='exact').limit(1).execute()
+
+                    # Table exists - get the count
+                    row_count = response.count if hasattr(response, 'count') else 0
+
+                    # Only add to list if table has data
+                    if row_count > 0:
+                        kbs.append({
+                            "table_name": table_name,
+                            "company_name": company,
+                            "kb_type": kb_type,
+                            "row_count": row_count,
+                            "created_at": datetime.now().isoformat()  # We don't have actual creation time
+                        })
+                        print(f"✅ Found KB table: {table_name} with {row_count} rows")
+
+                except Exception as e:
+                    # Table doesn't exist or error - skip it
+                    error_msg = str(e).lower()
+                    if 'not found' not in error_msg and 'does not exist' not in error_msg:
+                        print(f"⚠️  Error checking table {table_name}: {str(e)}")
+                    continue
+
+        return kbs
 
     async def get_kb_data(
         self,
@@ -535,7 +594,7 @@ class SupabaseService:
     async def update_row(
         self,
         table_name: str,
-        row_id: int,
+        row_id: str,
         row_data: Dict[str, Any],
         user_id: int
     ) -> Dict[str, Any]:
@@ -564,7 +623,7 @@ class SupabaseService:
     async def delete_row(
         self,
         table_name: str,
-        row_id: int,
+        row_id: str,
         user_id: int
     ) -> Dict[str, Any]:
         """Delete a row from a knowledge base table."""

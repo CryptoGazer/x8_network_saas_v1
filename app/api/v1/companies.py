@@ -356,3 +356,38 @@ async def delete_company(
 
     await db.delete(company)
     return None
+
+
+@router.get("/{company_id}/channels", response_model=List[str])
+async def get_company_channels(
+    company_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get all channels for a specific company.
+    Returns a list of channel platform names.
+    """
+    # Verify company belongs to user
+    result = await db.execute(
+        select(Company).where(
+            Company.id == company_id,
+            Company.user_id == current_user.id
+        )
+    )
+    company = result.scalar_one_or_none()
+
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found"
+        )
+
+    # Get all channels for this company
+    result_channels = await db.execute(
+        select(Channel).where(Channel.company_id == company.id)
+    )
+    channels = result_channels.scalars().all()
+
+    # Return list of platform names
+    return [ch.platform.value for ch in channels]

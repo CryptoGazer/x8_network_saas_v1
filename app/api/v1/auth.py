@@ -27,6 +27,7 @@ from app.services.email import (
 from app.core.deps import get_current_user
 from app.models.user import User
 from app.core.security import get_password_hash, verify_password
+from app.services.cloudinary import cloudinary_service
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -111,6 +112,14 @@ async def complete_registration(
 
     await db.commit()
 
+    # Create Cloudinary folders for the new user (silent operation)
+    if cloudinary_service.is_configured():
+        try:
+            await cloudinary_service.create_user_folders(user.id)
+        except Exception as e:
+            # Log the error but don't fail registration
+            print(f"Warning: Failed to create Cloudinary folders for user {user.id}: {str(e)}")
+
     tokens = generate_tokens(user.id)
     return tokens
 
@@ -134,6 +143,14 @@ async def register(
     )
 
     await db.commit()
+
+    # Create Cloudinary folders for the new user (silent operation)
+    if cloudinary_service.is_configured():
+        try:
+            await cloudinary_service.create_user_folders(user.id)
+        except Exception as e:
+            # Log the error but don't fail registration
+            print(f"Warning: Failed to create Cloudinary folders for user {user.id}: {str(e)}")
 
     tokens = generate_tokens(user.id)
     return tokens

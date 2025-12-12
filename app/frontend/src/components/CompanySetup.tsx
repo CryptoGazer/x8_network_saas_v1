@@ -7,13 +7,23 @@ interface CompanySetupProps {
 }
 
 interface Company {
-  id: string;
+  id: number;
+  company_id: string;
   name: string;
   shop_type: string;
-  channels: string[];
-  plan: string;
-  activationDate: string;
+  user_id: number;
   status: string;
+  total_messages: number;
+  type1_count: number;
+  type2_count: number;
+  type2_unpaid: number;
+  type3_count: number;
+  type3_paid: number;
+  avg_response_time: number;
+  subscription_ends: string | null;
+  created_at: string;
+  updated_at: string | null;
+  channels: string[];
 }
 
 export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate }) => {
@@ -610,7 +620,7 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
                       color: 'var(--text-muted)',
                       textTransform: 'uppercase'
                     }}>
-                      {language === 'EN' ? 'Plan' : 'Plan'}
+                      {language === 'EN' ? 'Messages' : 'Mensajes'}
                     </th>
                     <th style={{
                       padding: '12px',
@@ -620,7 +630,7 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
                       color: 'var(--text-muted)',
                       textTransform: 'uppercase'
                     }}>
-                      {language === 'EN' ? 'Activation Date' : 'Fecha'}
+                      {language === 'EN' ? 'Created' : 'Creado'}
                     </th>
                     <th style={{
                       padding: '12px',
@@ -674,22 +684,22 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
                         </div>
                       </td>
                       <td style={{ padding: '12px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                        {company.plan.charAt(0).toUpperCase() + company.plan.slice(1)}
+                        {company.total_messages || 0}
                       </td>
                       <td style={{ padding: '12px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                        {company.activationDate}
+                        {new Date(company.created_at).toLocaleDateString()}
                       </td>
                       <td style={{ padding: '12px' }}>
                         <span style={{
                           display: 'inline-block',
                           padding: '4px 12px',
-                          background: 'rgba(36, 211, 154, 0.1)',
-                          color: 'var(--success-green)',
+                          background: company.status === 'Active' ? 'rgba(36, 211, 154, 0.1)' : 'rgba(255, 92, 92, 0.1)',
+                          color: company.status === 'Active' ? 'var(--success-green)' : 'var(--danger-red)',
                           borderRadius: '4px',
                           fontSize: '12px',
                           fontWeight: 500
                         }}>
-                          {language === 'EN' ? 'Active' : 'Activo'}
+                          {company.status.charAt(0).toUpperCase() + company.status.slice(1)}
                         </span>
                       </td>
                     </tr>

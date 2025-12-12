@@ -35,7 +35,11 @@ interface Company {
 
 export const IntegrationsTokens: React.FC<IntegrationsTokensProps> = ({ language, onNavigate }) => {
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [selectedCompany, setSelectedCompany] = useState<number | null>(null);
+  const [selectedCompany, setSelectedCompany] = useState<number | null>(() => {
+    // Initialize from localStorage
+    const saved = localStorage.getItem('integrations_selected_company_id');
+    return saved ? parseInt(saved) : null;
+  });
   const [availableChannels, setAvailableChannels] = useState<AvailableChannels | null>(null);
   const [connectedIntegrations, setConnectedIntegrations] = useState<ConnectedIntegration[]>([]);
   const [currentPlan, setCurrentPlan] = useState<string>('free');
@@ -48,6 +52,8 @@ export const IntegrationsTokens: React.FC<IntegrationsTokensProps> = ({ language
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [whatsappQR, setWhatsappQR] = useState('');
   const [whatsappLoading, setWhatsappLoading] = useState(false);
+  const [companyChannels, setCompanyChannels] = useState<string[]>([]);
+  const [companiesLoaded, setCompaniesLoaded] = useState(false);
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
@@ -120,19 +126,70 @@ export const IntegrationsTokens: React.FC<IntegrationsTokensProps> = ({ language
   }[language.toLowerCase() as 'en' | 'es'];
 
   useEffect(() => {
-    const storedCompanies = localStorage.getItem('companies');
-    if (storedCompanies) {
-      setCompanies(JSON.parse(storedCompanies));
-    }
+    // Fetch companies from API
+    const fetchCompanies = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        const response = await fetch(`${API_URL}/api/v1/companies`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setCompanies(data);
+          // Also update localStorage for compatibility
+          localStorage.setItem('companies', JSON.stringify(data));
+
+          // Verify the saved company still exists
+          const savedCompanyId = localStorage.getItem('integrations_selected_company_id');
+          if (savedCompanyId) {
+            const companyId = parseInt(savedCompanyId);
+            const companyExists = data.some((c: any) => c.id === companyId);
+            if (!companyExists) {
+              // Company no longer exists, clear the saved selection
+              localStorage.removeItem('integrations_selected_company_id');
+              setSelectedCompany(null);
+            }
+          }
+
+          setCompaniesLoaded(true);
+        }
+      } catch (error) {
+        console.error('Failed to fetch companies:', error);
+        // Fallback to localStorage
+        const storedCompanies = localStorage.getItem('companies');
+        if (storedCompanies) {
+          setCompanies(JSON.parse(storedCompanies));
+        }
+        setCompaniesLoaded(true);
+      }
+    };
+
+    fetchCompanies();
   }, []);
 
+  // Load integrations when company is selected or when companies are loaded with saved selection
   useEffect(() => {
-    if (selectedCompany) loadIntegrations();
-  }, [selectedCompany]);
+    if (selectedCompany && companiesLoaded) {
+      loadIntegrations();
+    }
+  }, [selectedCompany, companiesLoaded]);
 
   const loadIntegrations = async () => {
+    if (!selectedCompany) return;
+
     setLoading(true);
     try {
+      // Fetch company channels from PostgreSQL database
+      const channelsResponse = await axios.get(
+        `${API_URL}/api/v1/companies/${selectedCompany}/channels`,
+        getAuthHeaders()
+      );
+
+      const companyChannelsList = channelsResponse.data; // Array of channel platform names
+      setCompanyChannels(companyChannelsList);
+
+      // Fetch user subscription/plan info
       const response = await axios.get(`${API_URL}/api/v1/integrations/available`, getAuthHeaders());
       setAvailableChannels(response.data.available_channels);
       setConnectedIntegrations(response.data.connected_integrations);
@@ -141,6 +198,8 @@ export const IntegrationsTokens: React.FC<IntegrationsTokensProps> = ({ language
       setDaysLeft(response.data.days_left);
       setChannelLimit(response.data.channel_limit);
       setIsEnterprise(response.data.is_enterprise || false);
+
+      console.log(`Company ${selectedCompany} has channels:`, companyChannelsList);
     } catch (err) {
       console.error('Error loading integrations:', err);
     } finally {
@@ -353,7 +412,16 @@ export const IntegrationsTokens: React.FC<IntegrationsTokensProps> = ({ language
         </label>
         <select
           value={selectedCompany || ''}
-          onChange={(e) => setSelectedCompany(Number(e.target.value))}
+          onChange={(e) => {
+            const newCompanyId = Number(e.target.value);
+            setSelectedCompany(newCompanyId);
+            // Persist to localStorage
+            if (newCompanyId) {
+              localStorage.setItem('integrations_selected_company_id', newCompanyId.toString());
+            } else {
+              localStorage.removeItem('integrations_selected_company_id');
+            }
+          }}
           style={{
             width: '100%',
             maxWidth: '400px',
@@ -407,12 +475,8 @@ export const IntegrationsTokens: React.FC<IntegrationsTokensProps> = ({ language
       {selectedCompany && !loading && availableChannels && (
         <>
           {currentPlan === 'free' && (() => {
-            // For FREE plan users, show only the channel they selected during company setup
-            const companies = JSON.parse(localStorage.getItem('companies') || '[]');
-            const currentCompany = companies.find((c: any) => c.id === selectedCompany);
-            const selectedChannel = currentCompany?.channels?.[0]; // FREE plan = only 1 channel
-
-            if (!selectedChannel) {
+            // For FREE plan users, show only channels that belong to this company in the database
+            if (!companyChannels || companyChannels.length === 0) {
               return (
                 <div style={{
                   padding: '32px 24px',
@@ -438,11 +502,18 @@ export const IntegrationsTokens: React.FC<IntegrationsTokensProps> = ({ language
               'instagram': { name: 'Instagram', key: 'instagram', icon: '📷' },
               'facebook': { name: 'Facebook', key: 'facebook', icon: '📘' },
               'gmail': { name: 'Email', key: 'email', icon: '📧' },
+              'email': { name: 'Email', key: 'email', icon: '📧' },
               'tiktok': { name: 'TikTok', key: 'tiktok', icon: '🎵' }
             };
 
+            // Get first channel from company channels (FREE plan = only 1 channel)
+            const selectedChannel = companyChannels[0].toLowerCase();
             const channelInfo = channelMap[selectedChannel];
-            if (!channelInfo) return null;
+
+            if (!channelInfo) {
+              console.warn(`Unknown channel type: ${selectedChannel}`);
+              return null;
+            }
 
             return (
               <div style={{ marginTop: '32px' }}>
@@ -579,39 +650,34 @@ export const IntegrationsTokens: React.FC<IntegrationsTokensProps> = ({ language
 
           {currentPlan !== 'free' && !isEnterprise && (
             <>
-              {channelLimit !== null && (() => {
-                const connectedCount = connectedIntegrations.filter(i => i.status === 'connected').length;
-                const limitReached = connectedCount >= channelLimit;
+              {/* Show info about channels available for this company */}
+              <div style={{
+                padding: '12px 16px',
+                marginTop: '16px',
+                marginBottom: '16px',
+                background: 'rgba(59, 130, 246, 0.1)',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <AlertCircle size={20} style={{ color: 'var(--brand-cyan)' }} />
+                <p style={{ color: 'var(--text-primary)', fontSize: '14px', margin: 0 }}>
+                  {language === 'EN'
+                    ? `This company has ${companyChannels.length} channel(s): ${companyChannels.join(', ')}`
+                    : `Esta empresa tiene ${companyChannels.length} canal(es): ${companyChannels.join(', ')}`
+                  }
+                </p>
+              </div>
 
-                return (
-                  <div style={{
-                    padding: '12px 16px',
-                    marginTop: '16px',
-                    marginBottom: '16px',
-                    background: limitReached ? 'rgba(255, 71, 71, 0.1)' : 'rgba(59, 130, 246, 0.1)',
-                    border: limitReached ? '1px solid rgba(255, 71, 71, 0.3)' : '1px solid rgba(59, 130, 246, 0.3)',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}>
-                    <AlertCircle size={20} style={{ color: limitReached ? 'var(--danger-red)' : 'var(--brand-cyan)' }} />
-                    <p style={{ color: 'var(--text-primary)', fontSize: '14px', margin: 0 }}>
-                      {limitReached ? t.limitReached : (
-                        <>
-                          {t.channelLimit} <strong>{channelLimit}</strong> {t.channelsText} ({connectedCount} {t.channelsUsed})
-                        </>
-                      )}
-                    </p>
-                  </div>
-                );
-              })()}
               <div style={{ marginTop: '32px', marginBottom: '32px' }}>
                 <h2 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
                   {t.messagingChannels}
                 </h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
-              {renderChannel('WhatsApp', 'whatsapp', '💬', (
+              {/* Only render channels that belong to this company */}
+              {companyChannels.includes('whatsapp') && renderChannel('WhatsApp', 'whatsapp', '💬', (
                 getStatus('WhatsApp') === 'connected' ? (
                   <button onClick={handleWhatsAppDisconnect} style={{
                     width: '100%',
@@ -666,11 +732,11 @@ export const IntegrationsTokens: React.FC<IntegrationsTokensProps> = ({ language
                   </div>
                 )
               ))}
-              {renderChannel('Telegram', 'telegram', '✈️', <p style={{ textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>{t.comingSoon}</p>)}
-              {renderChannel('Instagram', 'instagram', '📷', <p style={{ textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>{t.comingSoon}</p>)}
-              {renderChannel('Facebook', 'facebook', '📘', <p style={{ textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>{t.comingSoon}</p>)}
-              {renderChannel('TikTok', 'tiktok', '🎵', <p style={{ textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>{t.comingSoon}</p>)}
-              {renderChannel('Email', 'email', '📧', <p style={{ textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>{t.comingSoon}</p>)}
+              {companyChannels.includes('telegram') && renderChannel('Telegram', 'telegram', '✈️', <p style={{ textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>{t.comingSoon}</p>)}
+              {companyChannels.includes('instagram') && renderChannel('Instagram', 'instagram', '📷', <p style={{ textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>{t.comingSoon}</p>)}
+              {companyChannels.includes('facebook') && renderChannel('Facebook', 'facebook', '📘', <p style={{ textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>{t.comingSoon}</p>)}
+              {companyChannels.includes('tiktok') && renderChannel('TikTok', 'tiktok', '🎵', <p style={{ textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>{t.comingSoon}</p>)}
+              {(companyChannels.includes('email') || companyChannels.includes('gmail')) && renderChannel('Email', 'email', '📧', <p style={{ textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>{t.comingSoon}</p>)}
             </div>
           </div>
 
