@@ -77,10 +77,10 @@ interface Company {
 
 export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNavigate }) => {
   const [kbType, setKbType] = useState<'Product' | 'Service'>('Product');
-  const [selectedCompany, setSelectedCompany] = useState<string>(() => {
-    // Initialize from localStorage
-    return localStorage.getItem('kb_selected_company') || '';
-  });
+  // const [selectedCompany, setSelectedCompany] = useState<string>(() => {
+  //   return localStorage.getItem('kb_selected_company') || '';
+  // });
+  const [selectedCompany, setSelectedCompany] = useState<string>('');
   const [companies, setCompanies] = useState<Company[]>([]);
   const [productRows, setProductRows] = useState<ProductRow[]>([]);
   const [serviceRows, setServiceRows] = useState<ServiceRow[]>([]);
@@ -93,6 +93,22 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isLoadingRegistry, setIsLoadingRegistry] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
+
+  const [productCompanyName, setProductCompanyName] = useState<string | null>(null);
+  const [serviceCompanyName, setServiceCompanyName] = useState<string | null>(null);
+
+  const getNoCompanyAlert = () => {
+    if (language === 'EN') {
+      return kbType === 'Product'
+        ? 'Please create a Product company first in Company Setup.'
+        : 'Please create a Service company first in Company Setup.';
+    }
+
+    return kbType === 'Product'
+      ? 'Por favor crea primero una empresa de tipo Producto en Configuración de Empresa.'
+      : 'Por favor crea primero una empresa de tipo Servicio en Configuración de Empresa.';
+  };
+
 
   const fetchKBRegistry = async () => {
     setIsLoadingRegistry(true);
@@ -202,37 +218,20 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
           name: c.name,
           type: c.company_type || (c.product_type === 'Product' ? 'product' : 'service')
         }));
+
         setCompanies(mappedCompanies);
 
-        // Only auto-select if there's no saved selection
-        const savedCompany = localStorage.getItem('kb_selected_company');
-        if (!savedCompany && data.length > 0) {
-          const newestCompany = data[data.length - 1];
-          setSelectedCompany(newestCompany.name);
-          localStorage.setItem('kb_selected_company', newestCompany.name);
+        const productCompany = mappedCompanies.find((c: Company) => c.type === 'product');
+        const serviceCompany = mappedCompanies.find((c: Company) => c.type === 'service');
 
-          // Set KB type based on company type - prefer Service
-          if (newestCompany.product_type === 'Service') {
-            setKbType('Service');
-          } else if (newestCompany.product_type === 'Product') {
-            setKbType('Product');
-          }
-        } else if (savedCompany) {
-          // Verify saved company still exists
-          const companyExists = data.some((c: any) => c.name === savedCompany);
-          if (!companyExists) {
-            localStorage.removeItem('kb_selected_company');
-            setSelectedCompany('');
-          }
-        }
+        setProductCompanyName(productCompany ? productCompany.name : null);
+        setServiceCompanyName(serviceCompany ? serviceCompany.name : null);
 
-        // Also update localStorage for compatibility
         localStorage.setItem('companies', JSON.stringify(data));
       }
     } catch (error) {
       console.error('Failed to fetch companies from API:', error);
 
-      // Fallback to localStorage if API fails
       const storedCompanies = localStorage.getItem('companies');
       if (storedCompanies) {
         const companiesData = JSON.parse(storedCompanies);
@@ -242,20 +241,11 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
         }));
         setCompanies(mappedCompanies);
 
-        // Only auto-select if there's no saved selection
-        const savedCompany = localStorage.getItem('kb_selected_company');
-        if (!savedCompany && companiesData.length > 0) {
-          const newestCompany = companiesData[companiesData.length - 1];
-          setSelectedCompany(newestCompany.name);
-          localStorage.setItem('kb_selected_company', newestCompany.name);
-        } else if (savedCompany) {
-          // Verify saved company still exists
-          const companyExists = companiesData.some((c: any) => c.name === savedCompany);
-          if (!companyExists) {
-            localStorage.removeItem('kb_selected_company');
-            setSelectedCompany('');
-          }
-        }
+        const productCompany = mappedCompanies.find((c: Company) => c.type === 'product');
+        const serviceCompany = mappedCompanies.find((c: Company) => c.type === 'service');
+
+        setProductCompanyName(productCompany ? productCompany.name : null);
+        setServiceCompanyName(serviceCompany ? serviceCompany.name : null);
       }
     }
   };
@@ -264,6 +254,15 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
   useEffect(() => {
     fetchKBRegistry();
   }, [selectedCompany]);
+
+  useEffect(() => {
+    if (kbType === 'Product' || kbType.toLowerCase() === 'product') {
+      setSelectedCompany(productCompanyName || '');
+    } else {
+      setSelectedCompany(serviceCompanyName || '');
+    }
+  }, [kbType, productCompanyName, serviceCompanyName]);
+
 
   // Fetch KB data when registry updates or company changes
   useEffect(() => {
@@ -293,13 +292,13 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
     }
   }, [registry, selectedCompany]);
 
-  const filteredCompanies = companies.filter(c =>
-    kbType === 'Product' ? c.type === 'product' : c.type === 'service'
-  );
+  // const filteredCompanies = companies.filter(c =>
+  //   kbType === 'Product' ? c.type === 'product' : c.type === 'service'
+  // );
 
   const handleAddRow = async () => {
     if (!selectedCompany) {
-      alert(language === 'EN' ? 'Please select a company first' : 'Por favor selecciona una empresa primero');
+      alert(getNoCompanyAlert());
       return;
     }
 
@@ -435,7 +434,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
 
   const uploadCSVFile = async (file: File) => {
     if (!selectedCompany) {
-      alert(language === 'EN' ? 'Please select a company' : 'Por favor selecciona una empresa');
+      alert(getNoCompanyAlert());
       return;
     }
 
@@ -578,10 +577,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
 
   const uploadBulkMedia = async () => {
     if (!selectedCompany) {
-      alert(language === 'EN'
-        ? 'Please select a company first'
-        : 'Por favor selecciona una empresa primero'
-      );
+      alert(getNoCompanyAlert());
       return;
     }
 
@@ -804,7 +800,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
 
       <div className="glass-card" style={{ padding: '20px', marginBottom: '24px', borderRadius: '16px' }}>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div style={{ flex: '1 1 200px', minWidth: '200px' }}>
+          <div style={{ flex: '0 0 220px', minWidth: '200px' }}>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '8px' }}>
               {language === 'EN' ? 'KB Type' : 'Tipo de KB'}
             </label>
@@ -838,43 +834,11 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
                   cursor: 'pointer',
                   transition: 'all var(--transition-fast)'
                 }}
-                >
+              >
                 Service
               </button>
             </div>
           </div>
-
-          <div style={{ flex: '1 1 200px', minWidth: '200px' }}>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 500, color: 'var(--text-muted)', marginBottom: '8px' }}>
-              {language === 'EN' ? 'Company' : 'Empresa'}
-            </label>
-            <select
-              id="kb.companySelector"
-              value={selectedCompany}
-              onChange={(e) => {
-                const newCompany = e.target.value;
-                setSelectedCompany(newCompany);
-                // Persist to localStorage
-                localStorage.setItem('kb_selected_company', newCompany);
-              }}
-              style={{
-                width: '100%',
-                padding: '10px',
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--glass-border)',
-                borderRadius: '8px',
-                color: 'var(--text-primary)',
-                fontSize: '14px',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="">{language === 'EN' ? 'Select Company' : 'Seleccionar Empresa'}</option>
-              {filteredCompanies.map(c => (
-                <option key={c.name} value={c.name}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-
           <div id="kb-actions-wrapper" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', flex: '1 1 100%', width: '100%' }}>
             <button
               id="kb.importCsv"
