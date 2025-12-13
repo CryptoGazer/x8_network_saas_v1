@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, Download, Image as ImageIcon, Play, Database, X, AlertCircle } from 'lucide-react';
+import { Upload, Download, Image as ImageIcon, Play, Database, X, AlertCircle, Images, Copy, Trash2 } from 'lucide-react';
 
 interface KnowledgeBaseProps {
   language: string;
@@ -75,6 +75,13 @@ interface Company {
   type: 'product' | 'service';
 }
 
+interface MediaItem {
+  public_id: string;
+  url: string;
+  resource_type: 'image' | 'video';
+}
+
+
 export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNavigate }) => {
   const [kbType, setKbType] = useState<'Product' | 'Service'>('Product');
   // const [selectedCompany, setSelectedCompany] = useState<string>(() => {
@@ -86,6 +93,10 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
   const [serviceRows, setServiceRows] = useState<ServiceRow[]>([]);
   const [registry, setRegistry] = useState<KBRegistryEntry[]>([]);
   const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
+  const [showMediaGallery, setShowMediaGallery] = useState(false);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [isLoadingMediaGallery, setIsLoadingMediaGallery] = useState(false);
+  const [mediaGalleryError, setMediaGalleryError] = useState<string | null>(null);
   const [bulkFiles, setBulkFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
@@ -636,6 +647,111 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
     }
   };
 
+  const handleOpenMediaGallery = async () => {
+    if (!selectedCompany) {
+      // Логика такая же, как при аплоаде CSV / медиа
+      alert(getNoCompanyAlert());
+      return;
+    }
+
+    try {
+      setShowMediaGallery(true);
+      setIsLoadingMediaGallery(true);
+      setMediaGalleryError(null);
+
+      const token = localStorage.getItem('access_token');
+      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+
+      const res = await fetch(
+        `${API_URL}/api/v1/cloudinary/media?kb_type=${encodeURIComponent(kbType)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.detail || 'Failed to load media');
+      }
+
+      const items: MediaItem[] = [
+        ...(data.images || []),
+        ...(data.videos || []),
+      ];
+
+      setMediaItems(items);
+    } catch (err: any) {
+      console.error('Failed to load media gallery:', err);
+      setMediaGalleryError(err.message || 'Failed to load media');
+      alert(
+        language === 'EN'
+          ? `Failed to load media: ${err.message}`
+          : `Error al cargar medios: ${err.message}`
+      );
+    } finally {
+      setIsLoadingMediaGallery(false);
+    }
+  };
+
+  const handleCopyMediaUrl = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      // alert(
+      //   language === 'EN' ? 'Link copied to clipboard' : 'Enlace copiado al portapapeles'
+      // );
+    } catch (err) {
+      console.error('Clipboard error:', err);
+      alert(
+        language === 'EN'
+          ? 'Failed to copy link'
+          : 'Error al copiar el enlace'
+      );
+    }
+  };
+
+  const handleDeleteMedia = async (publicId: string) => {
+    const confirmTextEN = 'Are you sure you want to delete this file from Cloudinary?';
+    const confirmTextES = '¿Seguro que quieres eliminar este archivo de Cloudinary?';
+
+    if (!confirm(language === 'EN' ? confirmTextEN : confirmTextES)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('access_token');
+      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+
+      const res = await fetch(
+        `${API_URL}/api/v1/cloudinary/media/${encodeURIComponent(publicId)}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.detail || 'Failed to delete media');
+      }
+
+      // Убираем удалённый элемент из стейта
+      setMediaItems(prev => prev.filter(item => item.public_id !== publicId));
+    } catch (err: any) {
+      console.error('Failed to delete media:', err);
+      alert(
+        language === 'EN'
+          ? `Failed to delete media: ${err.message}`
+          : `Error al eliminar medio: ${err.message}`
+      );
+    }
+  };
+
   
 
   const updateProductCell = async (index: number, field: keyof ProductRow, value: any) => {
@@ -911,6 +1027,35 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
               <ImageIcon size={16} />
               <span className="desktop-only">{language === 'EN' ? 'Bulk Media Upload' : 'Carga Masiva'}</span>
               <span className="mobile-only">{language === 'EN' ? 'Media' : 'Medios'}</span>
+            </button>
+            
+            <button
+              id="kb.mediaGallery"
+              onClick={handleOpenMediaGallery}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '10px 16px',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--glass-border)',
+                borderRadius: '8px',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                flex: '0 0 auto',
+                minWidth: '120px',
+                justifyContent: 'center',
+              }}
+            >
+              <Images size={16} />
+              <span className="desktop-only">
+                {language === 'EN' ? 'Media Gallery' : 'Galería'}
+              </span>
+              <span className="mobile-only">
+                {language === 'EN' ? 'Gallery' : 'Galería'}
+              </span>
             </button>
           </div>
         </div>
@@ -1400,6 +1545,239 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
                   : language === 'EN'
                     ? 'Upload to Cloudinary'
                     : 'Subir a Cloudinary'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showMediaGallery && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => setShowMediaGallery(false)}
+        >
+          <div
+            className="glass-card"
+            style={{ padding: '24px', maxWidth: '800px', width: '95%', borderRadius: '16px', maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '16px',
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: '18px',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                }}
+              >
+                {language === 'EN'
+                  ? `Media Gallery — ${kbType}`
+                  : `Galería de Medios — ${kbType}`}
+              </h3>
+              <button
+                onClick={() => setShowMediaGallery(false)}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {isLoadingMediaGallery && (
+              <div style={{ textAlign: 'center', padding: '24px' }}>
+                <div
+                  style={{
+                    display: 'inline-block',
+                    width: '32px',
+                    height: '32px',
+                    border: '3px solid rgba(0, 212, 255, 0.1)',
+                    borderTop: '3px solid var(--brand-cyan)',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite',
+                    marginBottom: '12px',
+                  }}
+                />
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+                  {language === 'EN' ? 'Loading media...' : 'Cargando medios...'}
+                </p>
+              </div>
+            )}
+
+            {!isLoadingMediaGallery && mediaItems.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '24px' }}>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+                  {language === 'EN'
+                    ? 'No media found for this knowledge base type yet.'
+                    : 'Todavía no hay medios para este tipo de base de conocimiento.'}
+                </p>
+              </div>
+            )}
+
+            {!isLoadingMediaGallery && mediaItems.length > 0 && (
+              <div
+                style={{
+                  flex: 1,
+                  overflowY: 'auto',
+                  paddingRight: '4px',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+                    gap: '12px',
+                  }}
+                >
+                  {mediaItems.map(item => (
+                    <div
+                      key={item.public_id}
+                      style={{
+                        position: 'relative',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--glass-border)',
+                      }}
+                    >
+                      {item.resource_type === 'image' ? (
+                        <img
+                          src={item.url}
+                          alt=""
+                          style={{
+                            width: '100%',
+                            height: '110px',
+                            objectFit: 'cover',
+                            display: 'block',
+                          }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: '100%',
+                            height: '110px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            position: 'relative',
+                          }}
+                        >
+                          <video
+                            src={item.url}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                            }}
+                            muted
+                          />
+                          <Play
+                            size={28}
+                            style={{
+                              position: 'absolute',
+                              color: '#FFFFFF',
+                              opacity: 0.9,
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '4px',
+                          right: '4px',
+                          display: 'flex',
+                          gap: '4px',
+                        }}
+                      >
+                        <button
+                          onClick={() => handleCopyMediaUrl(item.url)}
+                          style={{
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '4px',
+                            background: 'rgba(0, 0, 0, 0.5)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                          title={language === 'EN' ? 'Copy public URL' : 'Copiar URL pública'}
+                        >
+                          <Copy size={14} color="#FFFFFF" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteMedia(item.public_id)}
+                          style={{
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '4px',
+                            background: 'rgba(220, 38, 38, 0.8)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                          title={language === 'EN' ? 'Delete from Cloudinary' : 'Eliminar de Cloudinary'}
+                        >
+                          <Trash2 size={14} color="#FFFFFF" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {mediaGalleryError && (
+              <p
+                style={{
+                  marginTop: '8px',
+                  fontSize: '12px',
+                  color: 'var(--danger-red)',
+                }}
+              >
+                {mediaGalleryError}
+              </p>
+            )}
+
+            <div style={{ marginTop: '16px', textAlign: 'right' }}>
+              <button
+                onClick={() => setShowMediaGallery(false)}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--glass-border)',
+                  background: 'transparent',
+                  color: 'var(--text-primary)',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                {language === 'EN' ? 'Close' : 'Cerrar'}
               </button>
             </div>
           </div>
