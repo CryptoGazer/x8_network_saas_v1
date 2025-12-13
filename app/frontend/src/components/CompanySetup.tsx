@@ -10,6 +10,7 @@ interface Company {
   id: number;
   company_id: string;
   name: string;
+  company_type: 'product' | 'service';
   shop_type: string;
   user_id: number;
   status: string;
@@ -37,6 +38,16 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
   const [specialOfferData, setSpecialOfferData] = useState<{ title: string; monthlyPrice: string; setupFee: string } | null>(null);
   const [currentUserPlan, setCurrentUserPlan] = useState<string>('free'); // Current user's plan from backend
 
+  const hasProductCompany = companies.some(c => c.company_type === 'product');
+  const hasServiceCompany = companies.some(c => c.company_type === 'service');
+  const maxCompaniesReached = companies.length >= 2;
+
+  const canCreateMoreCompanies =
+    !maxCompaniesReached &&
+    !(companyType === 'product' && hasProductCompany) &&
+    !(companyType === 'service' && hasServiceCompany);
+
+
   useEffect(() => {
     const saved = localStorage.getItem('specialOffer');
     if (saved) {
@@ -63,7 +74,15 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
 
     // Fetch companies from backend
     fetchCompanies();
-  }, []);
+
+    if (hasProductCompany && !hasServiceCompany) {
+      setCompanyType('service');
+    } else if (!hasProductCompany && hasServiceCompany) {
+      setCompanyType('product');
+    } else if (!hasProductCompany && !hasServiceCompany) {
+      setCompanyType('product');
+    }
+  }, [hasProductCompany, hasServiceCompany]);
 
   const cleanUpTestCompanies = () => {
     try {
@@ -185,6 +204,27 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
   };
 
   const handleActivateCompany = async () => {
+    if (maxCompaniesReached) {
+      alert(
+        language === 'EN'
+          ? 'You already have the maximum number of companies (2).'
+          : 'Ya tienes el número máximo de empresas (2).'
+      );
+      return;
+    }
+
+    const hasSameType = companies.some(
+      c => c.company_type === companyType
+    );
+    if (hasSameType) {
+      alert(
+        language === 'EN'
+          ? `You already have a ${companyType === 'product' ? 'Product' : 'Service'} company.`
+          : `Ya tienes una empresa de tipo ${companyType === 'product' ? 'Producto' : 'Servicio'}.`
+      );
+      return;
+    }
+
     if (!companyName.trim()) {
       alert(language === 'EN' ? 'Please enter a company name' : 'Por favor ingrese un nombre de empresa');
       return;
@@ -367,8 +407,26 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
                 transition: 'all var(--transition-fast)'
               }}
             >
-              <option value="product">{language === 'EN' ? 'Product' : 'Producto'}</option>
-              <option value="service">{language === 'EN' ? 'Service' : 'Servicio'}</option>
+              {/* <option value="product">{language === 'EN' ? 'Product' : 'Producto'}</option>
+              <option value="service">{language === 'EN' ? 'Service' : 'Servicio'}</option> */}
+              <option
+                value="product"
+                disabled={hasProductCompany}
+              >
+                {language === 'EN' ? 'Product' : 'Producto'}
+                {hasProductCompany
+                  ? language === 'EN' ? ' (already created)' : ' (ya creada)'
+                  : ''}
+              </option>
+              <option
+                value="service"
+                disabled={hasServiceCompany}
+              >
+                {language === 'EN' ? 'Service' : 'Servicio'}
+                {hasServiceCompany
+                  ? language === 'EN' ? ' (already created)' : ' (ya creada)'
+                  : ''}
+              </option>
             </select>
           </div>
 
@@ -532,11 +590,20 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
           </div>
 
           {/* Activate Button */}
+          {maxCompaniesReached && (
+            <p style={{ marginBottom: '8px', color: 'var(--text-muted)', fontSize: '12px' }}>
+              {language === 'EN'
+                ? 'You already created the maximum number of companies (1 Product and 1 Service).'
+                : 'Ya has creado el número máximo de empresas (1 Producto y 1 Servicio).'}
+            </p>
+          )}
           <div>
             <button
               id="activateCompanyBtn"
               onClick={handleActivateCompany}
+              disabled={!canCreateMoreCompanies}
               style={{
+                opacity: canCreateMoreCompanies ? 1 : 0.5,
                 padding: '12px 32px',
                 background: 'linear-gradient(135deg, var(--brand-cyan), var(--brand-teal))',
                 border: 'none',
@@ -544,7 +611,7 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
                 color: '#FFFFFF',
                 fontSize: '14px',
                 fontWeight: 600,
-                cursor: 'pointer',
+                cursor: canCreateMoreCompanies ? 'pointer' : 'not-allowed',
                 transition: 'all var(--transition-fast)',
                 boxShadow: '0 4px 12px rgba(0, 212, 255, 0.3)'
               }}
@@ -651,7 +718,7 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({ language, onNavigate
                         {company.name}
                       </td>
                       <td style={{ padding: '12px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                        {company.shop_type === 'product'
+                        {company.company_type === 'product'
                           ? (language === 'EN' ? 'Product' : 'Producto')
                           : (language === 'EN' ? 'Service' : 'Servicio')
                         }

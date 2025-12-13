@@ -25,6 +25,7 @@ class Company(CompanyBase):
     id: int
     company_id: str
     user_id: int
+    company_type: str
     status: CompanyStatus
     total_messages: int
     type1_count: int

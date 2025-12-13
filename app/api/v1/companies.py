@@ -100,6 +100,7 @@ async def list_companies(
             "id": company.id,
             "company_id": company.company_id,
             "name": company.name,
+            "company_type": company.company_type,
             "shop_type": company.shop_type,
             "user_id": company.user_id,
             "status": company.status,
@@ -126,6 +127,30 @@ async def create_company(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    # max 2 companies per user
+    result_all = await db.execute(
+        select(Company).where(Company.user_id == current_user.id)
+    )
+    user_companies = result_all.scalars().all()
+    if len(user_companies) >= 2:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You have reached the maximum number of companies (2 per account).",
+        )
+
+    # only one company of each type (product/service)
+    result_same_type = await db.execute(
+        select(Company).where(
+            Company.user_id == current_user.id,
+            Company.company_type == company_data.company_type,
+        )
+    )
+    if result_same_type.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"You already have a {company_data.company_type} company.",
+        )
+
     # Check if company with same name already exists for this user
     existing_company = await db.execute(
         select(Company).where(
@@ -144,6 +169,7 @@ async def create_company(
     company = Company(
         company_id=company_id,
         name=company_data.name,
+        company_type=company_data.company_type,
         shop_type=company_data.shop_type,
         user_id=current_user.id
     )
@@ -206,6 +232,7 @@ async def create_company(
         "id": company.id,
         "company_id": company.company_id,
         "name": company.name,
+        "company_type": company.company_type,
         "shop_type": company.shop_type,
         "user_id": company.user_id,
         "status": company.status,
@@ -255,6 +282,7 @@ async def get_company(
         "id": company.id,
         "company_id": company.company_id,
         "name": company.name,
+        "company_type": company.company_type,
         "shop_type": company.shop_type,
         "user_id": company.user_id,
         "status": company.status,
@@ -315,6 +343,7 @@ async def update_company(
         "id": company.id,
         "company_id": company.company_id,
         "name": company.name,
+        "company_type": company.company_type,
         "shop_type": company.shop_type,
         "user_id": company.user_id,
         "status": company.status,

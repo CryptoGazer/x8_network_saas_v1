@@ -19,6 +19,8 @@ class Company(Base):
     name = Column(String, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
+    company_type = Column(String, nullable=False)
+
     shop_type = Column(String, nullable=False, default="service")  # Can be any custom type
     status = Column(SQLEnum(CompanyStatus), default=CompanyStatus.ACTIVE)
 
