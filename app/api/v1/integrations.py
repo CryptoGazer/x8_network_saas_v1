@@ -27,11 +27,13 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 
+import re
+
 router = APIRouter(prefix="/api/v1/integrations", tags=["integrations"])
 
 
-# Plan-based channel availability mapping
-# All plans can choose from any of the 6 channels, but with different limits
+# ==================== PLAN CONFIG ====================
+
 PLAN_CHANNELS = {
     SubscriptionPlan.FREE: {
         "whatsapp": True,
@@ -75,64 +77,53 @@ PLAN_CHANNELS = {
     },
 }
 
-# Channel selection limits per plan
 PLAN_CHANNEL_LIMITS = {
-    SubscriptionPlan.FREE: 1,  # Can select 1 of any 6 channels
-    SubscriptionPlan.SINGLE: 1,  # Can select 1 of any 6 channels
-    SubscriptionPlan.DOUBLE: 2,  # Can select 2 of any 6 channels
-    SubscriptionPlan.GROWTH: 4,  # Can select 4 of any 6 channels
-    SubscriptionPlan.ENTERPRISE: None,  # Unlimited (custom tariff)
+    SubscriptionPlan.FREE: 1,
+    SubscriptionPlan.SINGLE: 1,
+    SubscriptionPlan.DOUBLE: 2,
+    SubscriptionPlan.GROWTH: 4,
+    SubscriptionPlan.ENTERPRISE: None,
 }
 
 
 async def get_user_subscription_plan(user_id: int, db: AsyncSession) -> SubscriptionPlan:
-    """Get the user's current active subscription plan"""
     result = await db.execute(
         select(Subscription)
         .where(Subscription.user_id == user_id)
         .order_by(Subscription.created_at.desc())
     )
     subscription = result.scalar_one_or_none()
-
     if subscription:
         return subscription.plan
     return SubscriptionPlan.FREE
 
 
 async def check_channel_limit(user_id: int, db: AsyncSession) -> None:
-    """Check if user has reached their channel connection limit"""
     plan = await get_user_subscription_plan(user_id, db)
     limit = PLAN_CHANNEL_LIMITS.get(plan)
 
     if limit is not None:
-        # Count connected channels
         result = await db.execute(
             select(Channel).where(
                 Channel.user_id == user_id,
-                Channel.status == ChannelStatus.CONNECTED
+                Channel.status == ChannelStatus.CONNECTED,
             )
         )
         connected_count = len(result.scalars().all())
-
         if connected_count >= limit:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Channel limit reached. Your {plan.value} plan allows maximum {limit} channels."
+                detail=f"Channel limit reached. Your {plan.value} plan allows maximum {limit} channels.",
             )
 
 
 @router.get("/available", response_model=IntegrationListResponse)
 async def get_available_integrations(
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """
-    Get available channels based on user's subscription plan and list of connected integrations
-    """
-    # Get user's subscription plan
     plan = await get_user_subscription_plan(current_user.id, db)
 
-    # Get user's connected integrations
     result = await db.execute(
         select(Channel).where(Channel.user_id == current_user.id)
     )
@@ -143,13 +134,10 @@ async def get_available_integrations(
         for channel in connected_channels
     ]
 
-    # Count connected messaging channels (not google_calendar or stripe)
-    connected_count = len([
-        ch for ch in connected_channels
-        if ch.status == ChannelStatus.CONNECTED
-    ])
+    connected_count = len(
+        [ch for ch in connected_channels if ch.status == ChannelStatus.CONNECTED]
+    )
 
-    # Calculate trial end date and days left for FREE plan
     trial_end_date = None
     days_left = None
     trial_expired = False
@@ -169,19 +157,16 @@ async def get_available_integrations(
                 days_left = 0
                 trial_expired = True
 
-    # Determine available channels based on plan and current connections
     if trial_expired:
-        # If trial expired, user cannot use any connections
         available_channels = AvailableChannels(
             whatsapp=False,
             telegram=False,
             instagram=False,
             facebook=False,
             email=False,
-            tiktok=False
+            tiktok=False,
         )
     elif plan == SubscriptionPlan.ENTERPRISE:
-        # Enterprise needs special setup - don't show channels as available
         is_enterprise = True
         available_channels = AvailableChannels(
             whatsapp=False,
@@ -189,11 +174,9 @@ async def get_available_integrations(
             instagram=False,
             facebook=False,
             email=False,
-            tiktok=False
+            tiktok=False,
         )
     elif plan == SubscriptionPlan.GROWTH:
-        # Growth plan: can select 4 of any 6 channels
-        # If already at limit (4 connected), disable all channels
         if connected_count >= 4:
             available_channels = AvailableChannels(
                 whatsapp=False,
@@ -201,21 +184,18 @@ async def get_available_integrations(
                 instagram=False,
                 facebook=False,
                 email=False,
-                tiktok=False
+                tiktok=False,
             )
         else:
-            # Show all 6 channels as available until limit reached
             available_channels = AvailableChannels(
                 whatsapp=True,
                 telegram=True,
                 instagram=True,
                 facebook=True,
                 email=True,
-                tiktok=True
+                tiktok=True,
             )
     else:
-        # For FREE, SINGLE, DOUBLE plans
-        # Check if limit is reached
         limit = PLAN_CHANNEL_LIMITS.get(plan)
         if limit is not None and connected_count >= limit:
             available_channels = AvailableChannels(
@@ -224,14 +204,14 @@ async def get_available_integrations(
                 instagram=False,
                 facebook=False,
                 email=False,
-                tiktok=False
+                tiktok=False,
             )
         else:
-            # Show all 6 channels as available until limit reached
-            channels_config = PLAN_CHANNELS.get(plan, PLAN_CHANNELS[SubscriptionPlan.FREE])
+            channels_config = PLAN_CHANNELS.get(
+                plan, PLAN_CHANNELS[SubscriptionPlan.FREE]
+            )
             available_channels = AvailableChannels(**channels_config)
 
-    # Get channel limit for the plan
     channel_limit = PLAN_CHANNEL_LIMITS.get(plan)
 
     return IntegrationListResponse(
@@ -241,92 +221,104 @@ async def get_available_integrations(
         trial_end_date=trial_end_date,
         days_left=days_left,
         channel_limit=channel_limit,
-        is_enterprise=is_enterprise
+        is_enterprise=is_enterprise,
     )
 
 
-# ==================== WhatsApp Integration (WAHA) ====================
+# ==================== WhatsApp Integration (WAHA, pairing code) ====================
 
 @router.post("/whatsapp/connect", response_model=WhatsAppQRResponse)
 async def connect_whatsapp(
     request: WhatsAppConnectRequest,
-    current_user: User = Depends(get_current_user),  # вернёшь потом
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # временно для отладки
-    current_user_id = current_user.id
+    """
+    Берём pairing-code у WAHA-сессии 'default'.
+    """
+    await check_channel_limit(current_user.id, db)
 
-    # ... проверки компании, лимитов и т.д. опускаю ...
+    if not settings.WAHA_API_URL or not settings.WAHA_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="WAHA service is not configured",
+        )
+
+    # Проверяем, что компания принадлежит юзеру
+    result = await db.execute(
+        select(Company).where(
+            Company.id == request.company_id,
+            Company.user_id == current_user.id,
+        )
+    )
+    company = result.scalar_one_or_none()
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found",
+        )
 
     session_id = "default"
+    raw_phone = (request.business_number or "").strip()
+    phone_digits = re.sub(r"\D", "", raw_phone)
+
+    if not phone_digits:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid phone number",
+        )
 
     try:
-        session_id = "default"
         async with httpx.AsyncClient() as client:
-            start_resp = await client.post(
-                f"{settings.WAHA_API_URL}/api/sessions/{session_id}/start",
-                headers={"X-Api-Key": settings.WAHA_API_KEY},
-                timeout=30.0,
-            )
-
-            # пробуем вытащить json, но тихо
-            try:
-                start_json = start_resp.json()
-            except Exception:
-                start_json = {}
-
-            # варианты, когда считаем, что всё ОК и можно идти за QR
-            if start_resp.status_code in (200, 202):
-                pass
-            elif (
-                start_resp.status_code == 422
-                and "already started" in (start_json.get("message") or "")
-            ):
-                # сессия уже запущена – это не ошибка
-                pass
-            else:
-                # вот тут реально что-то не так – валимся с 503
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail={
-                        "message": "WAHA failed to start session",
-                        "error": start_json or {"raw": start_resp.text},
-                    },
-                )
-
-            # а здесь уже спокойно берём QR
-            qr_resp = await client.get(
-                f"{settings.WAHA_API_URL}/api/{session_id}/auth/qr",
+            # 👉 СЮДА ДОБАВЛЕН json с phoneNumber
+            code_resp = await client.post(
+                f"{settings.WAHA_API_URL}/api/{session_id}/auth/request-code",
                 headers={
                     "X-Api-Key": settings.WAHA_API_KEY,
                     "Accept": "application/json",
+                    "Content-Type": "application/json",
                 },
-                params={"format": "image"},
+                json={
+                    "phoneNumber": phone_digits,
+                },
                 timeout=30.0,
             )
 
-            # если вдруг WAHA скажет, что статус не SCAN_QR_CODE – пробрасываем как есть
             try:
-                qr_json = qr_resp.json()
+                code_json = code_resp.json()
             except Exception:
-                qr_json = {}
-            if qr_resp.status_code == 422:
+                code_json = {}
+
+            if code_resp.status_code >= 400:
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail={
-                        "message": "WAHA session has invalid status for QR",
-                        "error": qr_json or {"raw": qr_resp.text},
+                        "message": "WAHA failed to generate pairing code",
+                        "error": code_json or {"raw": code_resp.text},
                     },
                 )
 
-            qr_resp.raise_for_status()
-            qr_base64 = qr_json.get("data") or qr_json.get("qr", "")
+            pairing_code = (
+                code_json.get("code")
+                or code_json.get("data")
+                or code_json.get("qr")
+                or code_json.get("pairingCode")
+            )
 
+            if not pairing_code:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail={
+                        "message": "WAHA did not return pairing code",
+                        "error": code_json,
+                    },
+                )
 
-        # дальше твоя логика с Channel
+        # сохраняем канал
         result = await db.execute(
             select(Channel).where(
                 Channel.company_id == request.company_id,
+                Channel.user_id == current_user.id,
                 Channel.platform == ChannelPlatform.WHATSAPP,
             )
         )
@@ -336,17 +328,17 @@ async def connect_whatsapp(
 
         if channel:
             channel.status = ChannelStatus.CONNECTING
-            channel.qr_code = qr_base64
+            channel.qr_code = str(pairing_code)
             channel.qr_code_expires_at = expires_at
-            channel.config = {"session_id": session_id}
+            channel.config = {**(channel.config or {}), "session_id": session_id}
             channel.platform_account_id = request.business_number
         else:
             channel = Channel(
                 company_id=request.company_id,
-                user_id=current_user_id,
+                user_id=current_user.id,
                 platform=ChannelPlatform.WHATSAPP,
                 status=ChannelStatus.CONNECTING,
-                qr_code=qr_base64,
+                qr_code=str(pairing_code),
                 qr_code_expires_at=expires_at,
                 config={"session_id": session_id},
                 platform_account_id=request.business_number,
@@ -357,13 +349,12 @@ async def connect_whatsapp(
         await db.refresh(channel)
 
         return WhatsAppQRResponse(
-            qr_code=qr_base64,
+            qr_code=str(pairing_code),
             session_id=session_id,
             expires_at=expires_at,
         )
 
     except HTTPException:
-        # пробрасываем как есть
         raise
     except Exception as e:
         raise HTTPException(
@@ -377,51 +368,68 @@ async def connect_whatsapp(
 async def get_whatsapp_status(
     company_id: int,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """
-    Check WhatsApp connection status
-    """
+    # 1. Находим канал в БД
     result = await db.execute(
         select(Channel).where(
             Channel.company_id == company_id,
             Channel.user_id == current_user.id,
-            Channel.platform == ChannelPlatform.WHATSAPP
+            Channel.platform == ChannelPlatform.WHATSAPP,
         )
     )
     channel = result.scalar_one_or_none()
 
     if not channel:
+        # Канал вообще не создан
         return WhatsAppStatusResponse(
             status=ChannelStatus.DISCONNECTED,
-            connected=False
+            connected=False,
         )
 
-    # If we have a session, check status with WAHA
+    waha_status = None
+    waha_state = None
+
+    # 2. Если есть session_id — спрашиваем у WAHA актуальный статус
     if channel.config and "session_id" in channel.config:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     f"{settings.WAHA_API_URL}/api/{channel.config['session_id']}/status",
                     headers={"X-Api-Key": settings.WAHA_API_KEY},
-                    timeout=10.0
+                    timeout=10.0,
                 )
                 response.raise_for_status()
                 status_data = response.json()
 
-                # Update channel status based on WAHA response
-                if status_data.get("status") == "WORKING":
-                    channel.status = ChannelStatus.CONNECTED
-                    channel.qr_code = None  # Clear QR code
-                    await db.commit()
-        except:
-            pass  # Ignore errors, use cached status
+                # Примеры для WAHA (обычно):
+                # { "status": "WORKING", "state": "CONNECTED", ... }
+                waha_status = (status_data.get("status") or "").upper()
+                waha_state = (status_data.get("state") or "").upper()
 
+                # 2.1. Сессия реально работает → помечаем канал как CONNECTED
+                if waha_status in ("WORKING", "CONNECTED") or waha_state in ("CONNECTED", "SYNCED"):
+                    if channel.status != ChannelStatus.CONNECTED:
+                        channel.status = ChannelStatus.CONNECTED
+                        channel.qr_code = None  # pairing-code больше не нужен
+                        await db.commit()
+
+                # 2.2. Явные "плохие" статусы — можно пометить как DISCONNECTED
+                elif waha_status in ("FAIL", "FAILED", "STOPPED"):
+                    if channel.status != ChannelStatus.DISCONNECTED:
+                        channel.status = ChannelStatus.DISCONNECTED
+                        await db.commit()
+
+        except Exception:
+            # Если WAHA сейчас недоступен — просто отдадим кэшированный статус из БД
+            pass
+
+    # 3. Возвращаем то, что у нас в БД после возможного апдейта
     return WhatsAppStatusResponse(
         status=channel.status,
         connected=channel.status == ChannelStatus.CONNECTED,
         phone_number=channel.platform_account_id,
-        error=channel.last_error
+        error=channel.last_error,
     )
 
 
@@ -429,16 +437,13 @@ async def get_whatsapp_status(
 async def disconnect_whatsapp(
     company_id: int,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """
-    Disconnect WhatsApp integration
-    """
     result = await db.execute(
         select(Channel).where(
             Channel.company_id == company_id,
             Channel.user_id == current_user.id,
-            Channel.platform == ChannelPlatform.WHATSAPP
+            Channel.platform == ChannelPlatform.WHATSAPP,
         )
     )
     channel = result.scalar_one_or_none()
@@ -446,22 +451,20 @@ async def disconnect_whatsapp(
     if not channel:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="WhatsApp integration not found"
+            detail="WhatsApp integration not found",
         )
 
-    # Stop WAHA session if exists
     if channel.config and "session_id" in channel.config:
         try:
             async with httpx.AsyncClient() as client:
                 await client.delete(
                     f"{settings.WAHA_API_URL}/api/{channel.config['session_id']}",
                     headers={"X-Api-Key": settings.WAHA_API_KEY},
-                    timeout=10.0
+                    timeout=10.0,
                 )
-        except:
-            pass  # Ignore errors
+        except Exception:
+            pass
 
-    # Delete the channel
     await db.delete(channel)
     await db.commit()
 
@@ -474,26 +477,20 @@ async def disconnect_whatsapp(
 async def init_google_calendar_auth(
     request: GoogleCalendarAuthRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """
-    Initialize Google Calendar OAuth flow
-    """
-    # Check if company exists
     result = await db.execute(
         select(Company).where(
             Company.id == request.company_id,
-            Company.user_id == current_user.id
+            Company.user_id == current_user.id,
         )
     )
     company = result.scalar_one_or_none()
     if not company:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Company not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Company not found"
         )
 
-    # Create OAuth flow
     flow = Flow.from_client_config(
         {
             "web": {
@@ -501,24 +498,23 @@ async def init_google_calendar_auth(
                 "client_secret": settings.GOOGLE_CLIENT_SECRET,
                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                 "token_uri": "https://oauth2.googleapis.com/token",
-                "redirect_uris": [settings.GOOGLE_CALENDAR_REDIRECT_URI]
+                "redirect_uris": [settings.GOOGLE_CALENDAR_REDIRECT_URI],
             }
         },
         scopes=[
             "https://www.googleapis.com/auth/calendar",
-            "https://www.googleapis.com/auth/userinfo.email"
-        ]
+            "https://www.googleapis.com/auth/userinfo.email",
+        ],
     )
     flow.redirect_uri = settings.GOOGLE_CALENDAR_REDIRECT_URI
 
-    # Generate state token for CSRF protection
     state = f"{current_user.id}:{request.company_id}:{secrets.token_urlsafe(16)}"
 
     auth_url, _ = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
         state=state,
-        prompt="consent"
+        prompt="consent",
     )
 
     return GoogleCalendarAuthResponse(auth_url=auth_url)
@@ -528,13 +524,9 @@ async def init_google_calendar_auth(
 async def google_calendar_callback(
     code: str,
     state: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """
-    Handle Google Calendar OAuth callback
-    """
     try:
-        # Parse state to get user_id and company_id
         parts = state.split(":")
         if len(parts) < 3:
             raise HTTPException(status_code=400, detail="Invalid state parameter")
@@ -542,7 +534,6 @@ async def google_calendar_callback(
         user_id = int(parts[0])
         company_id = int(parts[1])
 
-        # Exchange code for tokens
         flow = Flow.from_client_config(
             {
                 "web": {
@@ -550,30 +541,28 @@ async def google_calendar_callback(
                     "client_secret": settings.GOOGLE_CLIENT_SECRET,
                     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                     "token_uri": "https://oauth2.googleapis.com/token",
-                    "redirect_uris": [settings.GOOGLE_CALENDAR_REDIRECT_URI]
+                    "redirect_uris": [settings.GOOGLE_CALENDAR_REDIRECT_URI],
                 }
             },
             scopes=[
                 "https://www.googleapis.com/auth/calendar",
-                "https://www.googleapis.com/auth/userinfo.email"
-            ]
+                "https://www.googleapis.com/auth/userinfo.email",
+            ],
         )
         flow.redirect_uri = settings.GOOGLE_CALENDAR_REDIRECT_URI
         flow.fetch_token(code=code)
 
         credentials = flow.credentials
 
-        # Get user info
         service = build("oauth2", "v2", credentials=credentials)
         user_info = service.userinfo().get().execute()
         calendar_email = user_info.get("email")
 
-        # Create or update channel
         result = await db.execute(
             select(Channel).where(
                 Channel.company_id == company_id,
                 Channel.user_id == user_id,
-                Channel.platform == ChannelPlatform.EMAIL  # Using EMAIL for calendar
+                Channel.platform == ChannelPlatform.EMAIL,
             )
         )
         channel = result.scalar_one_or_none()
@@ -595,40 +584,38 @@ async def google_calendar_callback(
                 refresh_token=credentials.refresh_token,
                 platform_account_id=calendar_email,
                 platform_account_name=user_info.get("name"),
-                config={"calendar_connected": True}
+                config={"calendar_connected": True},
             )
             db.add(channel)
 
         await db.commit()
 
-        # Redirect to frontend with success
         return {
             "message": "Google Calendar connected successfully",
-            "redirect_url": f"{settings.FRONTEND_URL}/dashboard?calendar_connected=true"
+            "redirect_url": f"{settings.FRONTEND_URL}/dashboard?calendar_connected=true",
         }
 
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to complete Google Calendar authentication: {str(e)}"
+            detail=f"Failed to complete Google Calendar authentication: {str(e)}",
         )
 
 
-@router.get("/google-calendar/status/{company_id}", response_model=GoogleCalendarStatusResponse)
+@router.get(
+    "/google-calendar/status/{company_id}", response_model=GoogleCalendarStatusResponse
+)
 async def get_google_calendar_status(
     company_id: int,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """
-    Get Google Calendar connection status
-    """
     result = await db.execute(
         select(Channel).where(
             Channel.company_id == company_id,
             Channel.user_id == current_user.id,
             Channel.platform == ChannelPlatform.EMAIL,
-            Channel.config.contains({"calendar_connected": True})
+            Channel.config.contains({"calendar_connected": True}),
         )
     )
     channel = result.scalar_one_or_none()
@@ -639,67 +626,58 @@ async def get_google_calendar_status(
     return GoogleCalendarStatusResponse(
         connected=True,
         calendar_email=channel.platform_account_id,
-        last_sync=channel.updated_at
+        last_sync=channel.updated_at,
     )
 
 
-# ==================== Placeholder Endpoints for Other Platforms ====================
+# ==================== PLACEHOLDERS ====================
+
 
 @router.post("/telegram/connect")
 async def connect_telegram(
-    company_id: int,
-    current_user: User = Depends(get_current_user)
+    company_id: int, current_user: User = Depends(get_current_user)
 ):
-    """Placeholder for Telegram integration"""
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Telegram integration coming soon"
+        detail="Telegram integration coming soon",
     )
 
 
 @router.post("/instagram/connect")
 async def connect_instagram(
-    company_id: int,
-    current_user: User = Depends(get_current_user)
+    company_id: int, current_user: User = Depends(get_current_user)
 ):
-    """Placeholder for Instagram integration"""
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Instagram integration coming soon"
+        detail="Instagram integration coming soon",
     )
 
 
 @router.post("/facebook/connect")
 async def connect_facebook(
-    company_id: int,
-    current_user: User = Depends(get_current_user)
+    company_id: int, current_user: User = Depends(get_current_user)
 ):
-    """Placeholder for Facebook integration"""
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Facebook integration coming soon"
+        detail="Facebook integration coming soon",
     )
 
 
 @router.post("/tiktok/connect")
 async def connect_tiktok(
-    company_id: int,
-    current_user: User = Depends(get_current_user)
+    company_id: int, current_user: User = Depends(get_current_user)
 ):
-    """Placeholder for TikTok integration"""
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="TikTok integration coming soon"
+        detail="TikTok integration coming soon",
     )
 
 
 @router.post("/stripe/connect")
 async def connect_stripe(
-    company_id: int,
-    current_user: User = Depends(get_current_user)
+    company_id: int, current_user: User = Depends(get_current_user)
 ):
-    """Placeholder for Stripe Connect integration"""
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Stripe Connect integration coming soon"
+        detail="Stripe Connect integration coming soon",
     )
