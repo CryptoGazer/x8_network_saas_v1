@@ -838,7 +838,7 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
                   cursor: 'pointer',
                   transition: 'all var(--transition-fast)'
                 }}
-              >
+                >
                 Service
               </button>
             </div>
