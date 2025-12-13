@@ -136,6 +136,7 @@ async def upload_kb_media(
 ):
     """
     Bulk media upload for a KB. Stores files in Cloudinary in a user/kb_type folder.
+    Enforces: only ONE video per folder users/{user_id}/{kb_type}.
     """
     if not cloudinary_service.is_configured():
         raise HTTPException(
@@ -155,6 +156,55 @@ async def upload_kb_media(
             detail="No files uploaded"
         )
 
+    VIDEO_EXTS = (".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v")
+
+    def is_video_file(f: UploadFile) -> bool:
+        ct = (f.content_type or "").lower()
+        name = (f.filename or "").lower()
+        return ct.startswith("video/") or name.endswith(VIDEO_EXTS)
+
+    video_files = [f for f in files if is_video_file(f)]
+
+    if len(video_files) > 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Only one video file can be uploaded at a time"
+        )
+
+    if video_files:
+        media = await cloudinary_service.get_user_media(
+            user_id=current_user.id,
+            kb_type=kb_type,
+            max_results=100,
+        )
+
+        resources = media.get("resources", [])
+        existing_videos = []
+        
+        print("RESOURCES:")
+        pprint(resources)
+
+        for r in resources:
+            r_type = (r.get("resource_type") or "").lower()
+            fmt = (r.get("format") or "").lower()
+            public_id = r.get("public_id") or ""
+
+            print(f"\n{r_type=}")
+            print(f"{fmt=}")
+            print(f"{public_id=}\n")
+
+            if r_type == "video" or fmt in {"mp4", "mov", "avi", "mkv", "webm", "m4v"}:
+                existing_videos.append(public_id)
+
+        if existing_videos:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "This knowledge base already has a video in its folder. "
+                    "Delete the existing one before uploading a new video."
+                ),
+            )
+
     prepared_files = []
     for f in files:
         content = await f.read()
@@ -165,7 +215,6 @@ async def upload_kb_media(
             }
         )
 
-    # CloudinaryService will decide resource_type based on file extension
     result = await cloudinary_service.upload_multiple_files(
         files=prepared_files,
         user_id=current_user.id,

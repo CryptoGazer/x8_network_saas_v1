@@ -251,74 +251,80 @@ async def get_available_integrations(
 async def connect_whatsapp(
     request: WhatsAppConnectRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    """
-    Initialize WhatsApp connection via WAHA and get QR code
-    """
-    # Check channel limit before connecting
     await check_channel_limit(current_user.id, db)
 
     if not settings.WAHA_API_URL or not settings.WAHA_API_KEY:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="WAHA service is not configured"
+            detail="WAHA service is not configured",
         )
 
-    # Check if company exists and belongs to user
+    # Проверяем компанию
     result = await db.execute(
         select(Company).where(
             Company.id == request.company_id,
-            Company.user_id == current_user.id
+            Company.user_id == current_user.id,
         )
     )
     company = result.scalar_one_or_none()
     if not company:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Company not found"
+            detail="Company not found",
         )
 
-    # Create session ID
-    session_id = f"wa_{secrets.token_urlsafe(16)}"
+    # ВАЖНО: только default-сессия на Core
+    session_id = "default"
 
     try:
-        # Call WAHA API to start session and get QR code
+        # 1) Стартуем default-сессию (DEPRECATED /api/sessions/start, но для Core норм)
         async with httpx.AsyncClient() as client:
-            response = await client.post(
+            start_resp = await client.post(
                 f"{settings.WAHA_API_URL}/api/sessions/start",
-                headers={"X-Api-Key": settings.WAHA_API_KEY},
+                headers={
+                    "X-Api-Key": settings.WAHA_API_KEY,
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                },
                 json={
                     "name": session_id,
                     "config": {
                         "webhooks": [
                             {
                                 "url": settings.WAHA_WEBHOOK_URL,
-                                "events": ["message", "session.status"]
+                                "events": ["message", "session.status"],
                             }
                         ]
-                    }
+                    },
                 },
-                timeout=30.0
+                timeout=30.0,
             )
-            response.raise_for_status()
-            waha_data = response.json()
+            # если WAHA вернёт ошибку 4xx/5xx — тогда уже падаем
+            start_resp.raise_for_status()
 
-        # Get QR code
+        # 2) Получаем QR в base64 для default
         async with httpx.AsyncClient() as client:
-            qr_response = await client.get(
+            qr_resp = await client.get(
                 f"{settings.WAHA_API_URL}/api/{session_id}/auth/qr",
-                headers={"X-Api-Key": settings.WAHA_API_KEY},
-                timeout=30.0
+                headers={
+                    "X-Api-Key": settings.WAHA_API_KEY,
+                    # говорим WAHA: верни JSON с base64
+                    "Accept": "application/json",
+                },
+                params={"format": "image"},
+                timeout=30.0,
             )
-            qr_response.raise_for_status()
-            qr_data = qr_response.json()
+            qr_resp.raise_for_status()
+            qr_data = qr_resp.json()
+            qr_base64 = qr_data.get("data", "")
 
-        # Create or update channel record
+        # 3) Сохраняем канал в БД
         result = await db.execute(
             select(Channel).where(
                 Channel.company_id == request.company_id,
-                Channel.platform == ChannelPlatform.WHATSAPP
+                Channel.platform == ChannelPlatform.WHATSAPP,
             )
         )
         channel = result.scalar_one_or_none()
@@ -327,7 +333,7 @@ async def connect_whatsapp(
 
         if channel:
             channel.status = ChannelStatus.CONNECTING
-            channel.qr_code = qr_data.get("qr")
+            channel.qr_code = qr_base64
             channel.qr_code_expires_at = expires_at
             channel.config = {"session_id": session_id}
             channel.platform_account_id = request.business_number
@@ -337,10 +343,10 @@ async def connect_whatsapp(
                 user_id=current_user.id,
                 platform=ChannelPlatform.WHATSAPP,
                 status=ChannelStatus.CONNECTING,
-                qr_code=qr_data.get("qr"),
+                qr_code=qr_base64,
                 qr_code_expires_at=expires_at,
                 config={"session_id": session_id},
-                platform_account_id=request.business_number
+                platform_account_id=request.business_number,
             )
             db.add(channel)
 
@@ -348,20 +354,20 @@ async def connect_whatsapp(
         await db.refresh(channel)
 
         return WhatsAppQRResponse(
-            qr_code=qr_data.get("qr", ""),
+            qr_code=qr_base64,
             session_id=session_id,
-            expires_at=expires_at
+            expires_at=expires_at,
         )
 
     except httpx.HTTPError as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Failed to connect to WAHA service: {str(e)}"
+            detail=f"Failed to connect to WAHA service: {str(e)}",
         )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to initialize WhatsApp connection: {str(e)}"
+            detail=f"Failed to initialize WhatsApp connection: {str(e)}",
         )
 
 

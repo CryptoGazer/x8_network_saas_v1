@@ -85,21 +85,41 @@ async def get_user_media(
     )
 
     resources = media.get("resources", [])
+
     images = [
         {
             "public_id": r.get("public_id"),
             "url": r.get("secure_url") or r.get("url"),
-            "resource_type": r.get("resource_type"),
+            "resource_type": "image",
         }
         for r in resources
         if r.get("resource_type") == "image"
     ]
-    videos = [
-        {
+
+    def make_video_item(r):
+        base_url = r.get("secure_url") or r.get("url") or ""
+        thumb_url = base_url
+
+        # Попробуем заменить расширение на .jpg
+        # https://res.cloudinary.com/.../video/upload/.../file.mp4 -> .../file.jpg
+        try:
+            if "." in base_url.rsplit("/", 1)[-1]:
+                path, _ext = base_url.rsplit(".", 1)
+                thumb_url = f"{path}.jpg"
+            else:
+                thumb_url = base_url + ".jpg"
+        except Exception:
+            thumb_url = base_url
+
+        return {
             "public_id": r.get("public_id"),
-            "url": r.get("secure_url") or r.get("url"),
-            "resource_type": r.get("resource_type"),
+            "url": base_url,
+            "thumbnail_url": thumb_url,
+            "resource_type": "video",
         }
+
+    videos = [
+        make_video_item(r)
         for r in resources
         if r.get("resource_type") == "video"
     ]

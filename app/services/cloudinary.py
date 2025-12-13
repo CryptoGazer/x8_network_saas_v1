@@ -226,12 +226,12 @@ class CloudinaryService:
         max_results: int = 100
     ) -> Dict[str, Any]:
         """
-        Get list of media files for a user.
+        Get list of media files (images + videos) for a user.
 
         Args:
             user_id: User ID
             kb_type: Optional - filter by "Product" or "Service"
-            max_results: Maximum number of results to return
+            max_results: Maximum number of results to return (per type)
 
         Returns:
             Dictionary with list of media files
@@ -242,17 +242,30 @@ class CloudinaryService:
         try:
             folder_path = self.get_user_folder_path(user_id, kb_type)
 
-            # Get resources from folder
-            result = cloudinary.api.resources(
+            resources: List[Dict[str, Any]] = []
+
+            # 1) images
+            img_result = cloudinary.api.resources(
                 type="upload",
                 prefix=folder_path,
-                max_results=max_results
+                resource_type="image",
+                max_results=max_results,
             )
+            resources.extend(img_result.get("resources", []))
+
+            # 2) a video
+            vid_result = cloudinary.api.resources(
+                type="upload",
+                prefix=folder_path,
+                resource_type="video",
+                max_results=max_results,
+            )
+            resources.extend(vid_result.get("resources", []))
 
             return {
                 "success": True,
-                "total": len(result.get("resources", [])),
-                "resources": result.get("resources", [])
+                "total": len(resources),
+                "resources": resources,
             }
 
         except Exception as e:

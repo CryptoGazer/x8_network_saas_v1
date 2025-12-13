@@ -79,6 +79,7 @@ interface MediaItem {
   public_id: string;
   url: string;
   resource_type: 'image' | 'video';
+  thumbnail_url?: string;
 }
 
 
@@ -593,17 +594,47 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
     }
 
     if (bulkFiles.length === 0) {
-      alert(language === 'EN'
-        ? 'Please add at least one file'
-        : 'Por favor añade al menos un archivo'
+      alert(
+        language === 'EN'
+          ? 'Please add at least one file'
+          : 'Por favor añade al menos un archivo'
       );
       return;
     }
 
     try {
       setIsUploadingMedia(true);
+      setMediaError(null);
+
       const token = localStorage.getItem('access_token');
       const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+
+      // Есть ли среди выбранных файлов видео?
+      const hasVideoToUpload = bulkFiles.some(f => f.type.startsWith('video/'));
+
+      // Если пытаемся загрузить видео — сначала проверяем, нет ли уже видео в папке
+      if (hasVideoToUpload) {
+        const checkRes = await fetch(
+          `${API_URL}/api/v1/cloudinary/media?kb_type=${encodeURIComponent(kbType)}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const checkData = await checkRes.json();
+
+        if (checkRes.ok && checkData.videos && checkData.videos.length > 0) {
+          setIsUploadingMedia(false);
+          setMediaError(
+            language === 'EN'
+              ? 'This knowledge base already has a video. Delete it from Cloudinary before uploading a new one.'
+              : 'Esta base de conocimiento ya tiene un vídeo. Elimínalo de Cloudinary antes de subir uno nuevo.'
+          );
+          return;
+        }
+      }
 
       const formData = new FormData();
       bulkFiles.forEach(f => formData.append('files', f));
@@ -624,7 +655,6 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
         throw new Error(result.detail || 'Upload failed');
       }
 
-      // здесь result.items = [{ url, resource_type, public_id, filename }, ...]
       console.log('Uploaded media:', result);
 
       alert(
@@ -646,6 +676,24 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
       setIsUploadingMedia(false);
     }
   };
+
+
+  const getVideoThumbnailUrl = (url: string): string => {
+    try {
+      // Отделяем query-параметры (если есть)
+      const [base, query] = url.split('?');
+      const lastDot = base.lastIndexOf('.');
+      if (lastDot === -1) {
+        return url; // на всякий случай — если нет точки, просто вернём исходный URL
+      }
+      const jpgBase = base.slice(0, lastDot) + '.jpg';
+      return query ? `${jpgBase}?${query}` : jpgBase;
+    } catch {
+      return url;
+    }
+  };
+
+
 
   const handleOpenMediaGallery = async () => {
     if (!selectedCompany) {
@@ -1683,14 +1731,15 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
                             position: 'relative',
                           }}
                         >
-                          <video
-                            src={item.url}
+                          <img
+                            src={item.thumbnail_url || item.url}
+                            alt=""
                             style={{
                               width: '100%',
                               height: '100%',
                               objectFit: 'cover',
+                              display: 'block',
                             }}
-                            muted
                           />
                           <Play
                             size={28}
@@ -1702,7 +1751,6 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
                           />
                         </div>
                       )}
-
                       <div
                         style={{
                           position: 'absolute',
