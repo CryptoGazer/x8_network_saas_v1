@@ -157,27 +157,19 @@ async def get_available_integrations(
                 days_left = 0
                 trial_expired = True
 
-    if trial_expired:
-        available_channels = AvailableChannels(
-            whatsapp=False,
-            telegram=False,
-            instagram=False,
-            facebook=False,
-            email=False,
-            tiktok=False,
-        )
-    elif plan == SubscriptionPlan.ENTERPRISE:
-        is_enterprise = True
-        available_channels = AvailableChannels(
-            whatsapp=False,
-            telegram=False,
-            instagram=False,
-            facebook=False,
-            email=False,
-            tiktok=False,
-        )
-    elif plan == SubscriptionPlan.GROWTH:
-        if connected_count >= 4:
+        if trial_expired:
+            # триал кончился — вообще ничего нельзя
+            available_channels = AvailableChannels(
+                whatsapp=False,
+                telegram=False,
+                instagram=False,
+                facebook=False,
+                email=False,
+                tiktok=False,
+            )
+        elif plan == SubscriptionPlan.ENTERPRISE:
+            # энтерпрайз настраиваем руками, поэтому тоже не даём стандартный UI
+            is_enterprise = True
             available_channels = AvailableChannels(
                 whatsapp=False,
                 telegram=False,
@@ -187,30 +179,12 @@ async def get_available_integrations(
                 tiktok=False,
             )
         else:
-            available_channels = AvailableChannels(
-                whatsapp=True,
-                telegram=True,
-                instagram=True,
-                facebook=True,
-                email=True,
-                tiktok=True,
-            )
-    else:
-        limit = PLAN_CHANNEL_LIMITS.get(plan)
-        if limit is not None and connected_count >= limit:
-            available_channels = AvailableChannels(
-                whatsapp=False,
-                telegram=False,
-                instagram=False,
-                facebook=False,
-                email=False,
-                tiktok=False,
-            )
-        else:
+            # для всех обычных планов: только тариф решает, какие каналы вообще доступны
             channels_config = PLAN_CHANNELS.get(
                 plan, PLAN_CHANNELS[SubscriptionPlan.FREE]
             )
             available_channels = AvailableChannels(**channels_config)
+
 
     channel_limit = PLAN_CHANNEL_LIMITS.get(plan)
 
@@ -370,7 +344,6 @@ async def get_whatsapp_status(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # 1. Находим канал в БД
     result = await db.execute(
         select(Channel).where(
             Channel.company_id == company_id,
@@ -381,53 +354,83 @@ async def get_whatsapp_status(
     channel = result.scalar_one_or_none()
 
     if not channel:
-        # Канал вообще не создан
         return WhatsAppStatusResponse(
             status=ChannelStatus.DISCONNECTED,
             connected=False,
         )
 
-    waha_status = None
-    waha_state = None
+    session_id = (channel.config or {}).get("session_id")
+    is_connected = channel.status == ChannelStatus.CONNECTED
 
-    # 2. Если есть session_id — спрашиваем у WAHA актуальный статус
-    if channel.config and "session_id" in channel.config:
+    if session_id and settings.WAHA_API_URL and settings.WAHA_API_KEY:
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{settings.WAHA_API_URL}/api/{channel.config['session_id']}/status",
-                    headers={"X-Api-Key": settings.WAHA_API_KEY},
+                resp = await client.get(
+                    f"{settings.WAHA_API_URL}/api/sessions",
+                    params={"all": "true"},
+                    headers={
+                        "X-Api-Key": settings.WAHA_API_KEY,
+                        "Accept": "application/json",
+                    },
                     timeout=10.0,
                 )
-                response.raise_for_status()
-                status_data = response.json()
+                resp.raise_for_status()
+                data = resp.json()
 
-                # Примеры для WAHA (обычно):
-                # { "status": "WORKING", "state": "CONNECTED", ... }
-                waha_status = (status_data.get("status") or "").upper()
-                waha_state = (status_data.get("state") or "").upper()
+            if isinstance(data, dict):
+                sessions = data.get("data") or data.get("sessions") or []
+            else:
+                sessions = data
 
-                # 2.1. Сессия реально работает → помечаем канал как CONNECTED
-                if waha_status in ("WORKING", "CONNECTED") or waha_state in ("CONNECTED", "SYNCED"):
-                    if channel.status != ChannelStatus.CONNECTED:
-                        channel.status = ChannelStatus.CONNECTED
-                        channel.qr_code = None  # pairing-code больше не нужен
-                        await db.commit()
+            session_info = None
+            for s in sessions:
+                sid = (
+                    s.get("id")
+                    or s.get("name")
+                    or s.get("sessionId")
+                    or s.get("session_id")
+                )
+                if sid == session_id:
+                    session_info = s
+                    break
 
-                # 2.2. Явные "плохие" статусы — можно пометить как DISCONNECTED
-                elif waha_status in ("FAIL", "FAILED", "STOPPED"):
-                    if channel.status != ChannelStatus.DISCONNECTED:
-                        channel.status = ChannelStatus.DISCONNECTED
-                        await db.commit()
+            if session_info is not None:
+                status_str = (session_info.get("status") or "").upper()
+                state_str = (session_info.get("state") or "").upper()
 
-        except Exception:
-            # Если WAHA сейчас недоступен — просто отдадим кэшированный статус из БД
+                account = session_info.get("account") or {}
+                phone = (
+                    account.get("phoneNumber")
+                    or session_info.get("phoneNumber")
+                    or session_info.get("phone")
+                )
+
+                # подключен ТОЛЬКО если реально есть номер
+                has_phone = bool(phone)
+                is_connected = has_phone
+
+                new_status = ChannelStatus.CONNECTED if is_connected else ChannelStatus.DISCONNECTED
+
+                if (
+                    channel.status != new_status
+                    or (phone and phone != channel.platform_account_id)
+                ):
+                    channel.status = new_status
+                    if is_connected:
+                        channel.qr_code = None
+                        channel.qr_code_expires_at = None
+                    if phone:
+                        channel.platform_account_id = phone
+
+                    await db.commit()
+                    await db.refresh(channel)
+
+        except Exception as e:
             pass
 
-    # 3. Возвращаем то, что у нас в БД после возможного апдейта
     return WhatsAppStatusResponse(
         status=channel.status,
-        connected=channel.status == ChannelStatus.CONNECTED,
+        connected=is_connected,
         phone_number=channel.platform_account_id,
         error=channel.last_error,
     )
@@ -454,17 +457,28 @@ async def disconnect_whatsapp(
             detail="WhatsApp integration not found",
         )
 
-    if channel.config and "session_id" in channel.config:
+    session_id = (channel.config or {}).get("session_id")
+
+    # 1. Разлогинимся в WAHA (но default-сессию не убиваем)
+    if session_id and settings.WAHA_API_URL and settings.WAHA_API_KEY:
         try:
             async with httpx.AsyncClient() as client:
-                await client.delete(
-                    f"{settings.WAHA_API_URL}/api/{channel.config['session_id']}",
-                    headers={"X-Api-Key": settings.WAHA_API_KEY},
-                    timeout=10.0,
-                )
+                # самый распространённый вариант
+                try:
+                    await client.post(
+                        f"{settings.WAHA_API_URL}/api/{session_id}/logout",
+                        headers={"X-Api-Key": settings.WAHA_API_KEY},
+                        timeout=10.0,
+                    )
+                except Exception:
+                    # если у тебя другой путь (например /api/{id}/auth/logout),
+                    # просто поправь URL и можешь удалить этот except
+                    pass
         except Exception:
+            # WAHA недоступен — просто продолжаем и чистим БД
             pass
 
+    # 2. Удаляем канал из БД
     await db.delete(channel)
     await db.commit()
 

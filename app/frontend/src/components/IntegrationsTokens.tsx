@@ -271,18 +271,37 @@ export const IntegrationsTokens: React.FC<IntegrationsTokensProps> = ({ language
 
   const handleWhatsAppDisconnect = async () => {
     if (!selectedCompany) return;
+    setWhatsappLoading(true);
+    setError('');
+
     try {
       await axios.delete(
         `${API_URL}/api/v1/integrations/whatsapp/disconnect/${selectedCompany}`,
         getAuthHeaders()
       );
+
+      // локально сразу чистим всё, чтобы вернулся "первичный" экран
       setWhatsappCode('');
       setWhatsappNumber('');
-      loadIntegrations();
+
+      setConnectedIntegrations((prev) =>
+        prev.filter(
+          (i) =>
+            !(
+              i.platform.toLowerCase() === 'whatsapp' &&
+              i.company_id === selectedCompany
+            )
+        )
+      );
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Disconnect failed');
+    } finally {
+      setWhatsappLoading(false);
+      // дополнительно синхронизируемся с бэком
+      loadIntegrations();
     }
   };
+
 
   const handleGoogleCalendarConnect = async () => {
     if (!selectedCompany) return;
@@ -299,11 +318,17 @@ export const IntegrationsTokens: React.FC<IntegrationsTokensProps> = ({ language
   };
 
   const getStatus = (platform: string) => {
+    if (!selectedCompany) return 'disconnected';
+
     const integration = connectedIntegrations.find(
-      (i) => i.platform.toLowerCase() === platform.toLowerCase()
+      (i) =>
+        i.platform.toLowerCase() === platform.toLowerCase() &&
+        i.company_id === selectedCompany
     );
+
     return integration?.status || 'disconnected';
   };
+
 
   const isAvailable = (channel: keyof AvailableChannels) => {
     if (!availableChannels) return false;
