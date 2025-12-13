@@ -10,6 +10,7 @@ from datetime import datetime
 from app.core.deps import get_current_user, get_db
 from app.models.user import User
 from app.services.supabase import supabase_service
+from app.services.cloudinary import cloudinary_service
 
 from uuid import UUID
 from pprint import pprint
@@ -125,6 +126,63 @@ async def upload_csv(
         raise HTTPException(status_code=500, detail=f"Failed to upload CSV: {str(e)}")
 
 
+@router.post("/media-upload")
+async def upload_kb_media(
+    files: list[UploadFile] = File(...),
+    kb_type: str = Form(...),          # "Product" | "Service"
+    company_name: str = Form(...),     # just echoed back for convenience
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Bulk media upload for a KB. Stores files in Cloudinary in a user/kb_type folder.
+    """
+    if not cloudinary_service.is_configured():
+        raise HTTPException(
+            status_code=500,
+            detail="Cloudinary is not configured. Please set CLOUDINARY_* env vars."
+        )
+
+    if kb_type not in ["Product", "Service"]:
+        raise HTTPException(
+            status_code=400,
+            detail="kb_type must be 'Product' or 'Service'"
+        )
+
+    if not files:
+        raise HTTPException(
+            status_code=400,
+            detail="No files uploaded"
+        )
+
+    prepared_files = []
+    for f in files:
+        content = await f.read()
+        prepared_files.append(
+            {
+                "content": content,
+                "filename": f.filename or "file"
+            }
+        )
+
+    # CloudinaryService will decide resource_type based on file extension
+    result = await cloudinary_service.upload_multiple_files(
+        files=prepared_files,
+        user_id=current_user.id,
+        kb_type=kb_type
+    )
+
+    return {
+        "success": result["success"],
+        "items": result["results"],            # [{filename, url, public_id, resource_type}, ...]
+        "failed": result["failed"],
+        "errors": result["errors"],
+        "folder": cloudinary_service.get_user_folder_path(current_user.id, kb_type),
+        "kb_type": kb_type,
+        "company_name": company_name
+    }
+
+
 @router.get("/list")
 async def list_knowledge_bases(
     company_name: Optional[str] = None,
@@ -166,7 +224,6 @@ async def get_kb_data(
     """
     if not supabase_service.is_configured():
         raise HTTPException(status_code=500, detail="Supabase is not configured")
-
     try:
         data = await supabase_service.get_kb_data(
             table_name=table_name,
