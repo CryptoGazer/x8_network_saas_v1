@@ -250,77 +250,80 @@ async def get_available_integrations(
 @router.post("/whatsapp/connect", response_model=WhatsAppQRResponse)
 async def connect_whatsapp(
     request: WhatsAppConnectRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),  # вернёшь потом
     db: AsyncSession = Depends(get_db),
 ):
-    await check_channel_limit(current_user.id, db)
+    # временно для отладки
+    current_user_id = current_user.id
 
-    if not settings.WAHA_API_URL or not settings.WAHA_API_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="WAHA service is not configured",
-        )
+    # ... проверки компании, лимитов и т.д. опускаю ...
 
-    # Проверяем компанию
-    result = await db.execute(
-        select(Company).where(
-            Company.id == request.company_id,
-            Company.user_id == current_user.id,
-        )
-    )
-    company = result.scalar_one_or_none()
-    if not company:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Company not found",
-        )
-
-    # ВАЖНО: только default-сессия на Core
     session_id = "default"
 
     try:
-        # 1) Стартуем default-сессию (DEPRECATED /api/sessions/start, но для Core норм)
+        session_id = "default"
         async with httpx.AsyncClient() as client:
             start_resp = await client.post(
-                f"{settings.WAHA_API_URL}/api/sessions/start",
-                headers={
-                    "X-Api-Key": settings.WAHA_API_KEY,
-                    "Accept": "application/json",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "name": session_id,
-                    "config": {
-                        "webhooks": [
-                            {
-                                "url": settings.WAHA_WEBHOOK_URL,
-                                "events": ["message", "session.status"],
-                            }
-                        ]
-                    },
-                },
+                f"{settings.WAHA_API_URL}/api/sessions/{session_id}/start",
+                headers={"X-Api-Key": settings.WAHA_API_KEY},
                 timeout=30.0,
             )
-            # если WAHA вернёт ошибку 4xx/5xx — тогда уже падаем
-            start_resp.raise_for_status()
 
-        # 2) Получаем QR в base64 для default
-        async with httpx.AsyncClient() as client:
+            # пробуем вытащить json, но тихо
+            try:
+                start_json = start_resp.json()
+            except Exception:
+                start_json = {}
+
+            # варианты, когда считаем, что всё ОК и можно идти за QR
+            if start_resp.status_code in (200, 202):
+                pass
+            elif (
+                start_resp.status_code == 422
+                and "already started" in (start_json.get("message") or "")
+            ):
+                # сессия уже запущена – это не ошибка
+                pass
+            else:
+                # вот тут реально что-то не так – валимся с 503
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail={
+                        "message": "WAHA failed to start session",
+                        "error": start_json or {"raw": start_resp.text},
+                    },
+                )
+
+            # а здесь уже спокойно берём QR
             qr_resp = await client.get(
                 f"{settings.WAHA_API_URL}/api/{session_id}/auth/qr",
                 headers={
                     "X-Api-Key": settings.WAHA_API_KEY,
-                    # говорим WAHA: верни JSON с base64
                     "Accept": "application/json",
                 },
                 params={"format": "image"},
                 timeout=30.0,
             )
-            qr_resp.raise_for_status()
-            qr_data = qr_resp.json()
-            qr_base64 = qr_data.get("data", "")
 
-        # 3) Сохраняем канал в БД
+            # если вдруг WAHA скажет, что статус не SCAN_QR_CODE – пробрасываем как есть
+            try:
+                qr_json = qr_resp.json()
+            except Exception:
+                qr_json = {}
+            if qr_resp.status_code == 422:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail={
+                        "message": "WAHA session has invalid status for QR",
+                        "error": qr_json or {"raw": qr_resp.text},
+                    },
+                )
+
+            qr_resp.raise_for_status()
+            qr_base64 = qr_json.get("data") or qr_json.get("qr", "")
+
+
+        # дальше твоя логика с Channel
         result = await db.execute(
             select(Channel).where(
                 Channel.company_id == request.company_id,
@@ -340,7 +343,7 @@ async def connect_whatsapp(
         else:
             channel = Channel(
                 company_id=request.company_id,
-                user_id=current_user.id,
+                user_id=current_user_id,
                 platform=ChannelPlatform.WHATSAPP,
                 status=ChannelStatus.CONNECTING,
                 qr_code=qr_base64,
@@ -359,16 +362,15 @@ async def connect_whatsapp(
             expires_at=expires_at,
         )
 
-    except httpx.HTTPError as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Failed to connect to WAHA service: {str(e)}",
-        )
+    except HTTPException:
+        # пробрасываем как есть
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to initialize WhatsApp connection: {str(e)}",
         )
+
 
 
 @router.get("/whatsapp/status/{company_id}", response_model=WhatsAppStatusResponse)

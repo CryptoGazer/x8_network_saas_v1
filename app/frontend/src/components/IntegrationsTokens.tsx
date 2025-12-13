@@ -211,20 +211,39 @@ export const IntegrationsTokens: React.FC<IntegrationsTokensProps> = ({ language
     if (!selectedCompany || !whatsappNumber) return;
     setWhatsappLoading(true);
     setError('');
+
     try {
       const response = await axios.post(
         `${API_URL}/api/v1/integrations/whatsapp/connect`,
         { company_id: selectedCompany, business_number: whatsappNumber },
         getAuthHeaders()
       );
-      setWhatsappQR(response.data.qr_code);
+
+      const rawQr: string = response.data.qr_code;
+
+      // если бэк уже вернул data:image/... – используем как есть
+      const qrSrc = rawQr.startsWith('data:')
+        ? rawQr
+        : `data:image/png;base64,${rawQr}`;
+
+      setWhatsappQR(qrSrc);
       pollWhatsAppStatus();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Connection failed');
+      const detail = err?.response?.data?.detail;
+      // detail может быть строкой или объектом
+      if (typeof detail === 'string') {
+        setError(detail);
+      } else if (detail && typeof detail === 'object') {
+        // попытаемся вывести message или хотя бы JSON
+        setError(detail.message || JSON.stringify(detail));
+      } else {
+        setError('Connection failed');
+      }
     } finally {
       setWhatsappLoading(false);
     }
   };
+
 
   const pollWhatsAppStatus = () => {
     if (!selectedCompany) return;
