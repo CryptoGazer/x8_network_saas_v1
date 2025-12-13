@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Eye, EyeOff, AlertTriangle, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { apiClient } from '../utils/api';
 
 interface ProfileSettingsProps {
   language: string;
@@ -22,8 +23,10 @@ interface LoginData {
 }
 
 export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language, onNavigate }) => {
-  const { changePassword } = useAuth();
+  const { user, changePassword, refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'profile' | 'settings'>('profile');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState('');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -39,30 +42,37 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language, onNa
     notif_reports: false
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [channels, setChannels] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const demoUser = {
-    fullName: 'John Doe',
-    email: 'john.doe@example.com',
-    role: 'Owner',
-    activeCompany: 'Product Hotel Canarian',
-    linkedCompanies: ['Product Hotel Canarian', 'Service AI Agent']
-  };
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const companiesData = await apiClient.getCompanies();
+        setCompanies(companiesData);
 
-  const demoSubscription = {
-    plan: 'Single — €249/mo',
-    setupFee: '€199',
-    nextBilling: '01.12.2025',
-    channels: '1 channel (WhatsApp)',
-    features: 'Up to 1,000 conversations'
-  };
+        // Fetch channels from all companies
+        const allChannels: any[] = [];
+        for (const company of companiesData) {
+          if (company.channels && Array.isArray(company.channels)) {
+            company.channels.forEach((channel: string) => {
+              if (!allChannels.find(c => c.name === channel)) {
+                allChannels.push({ name: channel, status: 'active' });
+              }
+            });
+          }
+        }
+        setChannels(allChannels);
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const connectedChannels = [
-    { name: 'WhatsApp', status: 'active' },
-    { name: 'Instagram', status: 'active' },
-    { name: 'Telegram', status: 'active' },
-    { name: 'Facebook', status: 'inactive' },
-    { name: 'Gmail', status: 'active' }
-  ];
+    fetchData();
+  }, []);
 
   const recentLogins: LoginData[] = [
     { date: '2025-12-06 10:30', ip: '192.168.1.1', device: 'Chrome on Windows', status: 'Success' },
@@ -124,6 +134,28 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language, onNa
   const handleDeleteAccount = () => {
     setShowDeleteConfirm(false);
     alert(language === 'EN' ? 'Account deletion initiated. This action cannot be undone.' : 'Eliminación de cuenta iniciada. Esta acción no se puede deshacer.');
+  };
+
+  const handleSaveName = async () => {
+    if (!editedName.trim()) {
+      alert(language === 'EN' ? 'Name cannot be empty' : 'El nombre no puede estar vacío');
+      return;
+    }
+
+    try {
+      await apiClient.updateProfile({ full_name: editedName });
+      await refreshUser();
+      setIsEditingName(false);
+      alert(language === 'EN' ? 'Name updated successfully' : 'Nombre actualizado exitosamente');
+    } catch (error) {
+      console.error('Failed to update name:', error);
+      alert(language === 'EN' ? 'Failed to update name' : 'Error al actualizar el nombre');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingName(false);
+    setEditedName('');
   };
 
   return (
@@ -205,16 +237,86 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language, onNa
                 <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
                   {language === 'EN' ? 'FULL NAME' : 'NOMBRE COMPLETO'}
                 </label>
-                <div style={{ padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '14px' }}>
-                  {demoUser.fullName}
-                </div>
+                {isEditingName ? (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      value={editedName}
+                      onChange={(e) => setEditedName(e.target.value)}
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--brand-cyan)',
+                        borderRadius: '8px',
+                        color: 'var(--text-primary)',
+                        fontSize: '14px',
+                        outline: 'none'
+                      }}
+                    />
+                    <button
+                      onClick={handleSaveName}
+                      style={{
+                        padding: '8px 16px',
+                        background: 'var(--brand-cyan)',
+                        border: 'none',
+                        borderRadius: '6px',
+                        color: '#000',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {language === 'EN' ? 'Save' : 'Guardar'}
+                    </button>
+                    <button
+                      onClick={handleCancelEdit}
+                      style={{
+                        padding: '8px 16px',
+                        background: 'transparent',
+                        border: '1px solid var(--glass-border)',
+                        borderRadius: '6px',
+                        color: 'var(--text-primary)',
+                        fontSize: '12px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {language === 'EN' ? 'Cancel' : 'Cancelar'}
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => {
+                      setIsEditingName(true);
+                      setEditedName(user?.full_name || '');
+                    }}
+                    style={{
+                      padding: '12px',
+                      background: 'var(--bg-secondary)',
+                      borderRadius: '8px',
+                      color: 'var(--text-primary)',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      border: '1px solid transparent',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.border = '1px solid var(--brand-cyan)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.border = '1px solid transparent';
+                    }}
+                  >
+                    {loading ? '-' : (user?.full_name || '-')}
+                  </div>
+                )}
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
                   {language === 'EN' ? 'EMAIL' : 'CORREO ELECTRÓNICO'}
                 </label>
                 <div style={{ padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '14px' }}>
-                  {demoUser.email}
+                  {loading ? '-' : (user?.email || '-')}
                 </div>
               </div>
             </div>
@@ -223,22 +325,30 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language, onNa
                 {language === 'EN' ? 'LINKED COMPANIES' : 'EMPRESAS VINCULADAS'}
               </label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {demoUser.linkedCompanies.map((company, idx) => (
-                  <span
-                    key={idx}
-                    style={{
-                      padding: '6px 12px',
-                      background: 'rgba(0, 212, 255, 0.1)',
-                      border: '1px solid var(--brand-cyan)',
-                      borderRadius: '6px',
-                      color: 'var(--brand-cyan)',
-                      fontSize: '13px',
-                      fontWeight: 600
-                    }}
-                  >
-                    {company}
+                {loading ? (
+                  <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>-</span>
+                ) : companies.length > 0 ? (
+                  companies.map((company: any, idx: number) => (
+                    <span
+                      key={idx}
+                      style={{
+                        padding: '6px 12px',
+                        background: 'rgba(0, 212, 255, 0.1)',
+                        border: '1px solid var(--brand-cyan)',
+                        borderRadius: '6px',
+                        color: 'var(--brand-cyan)',
+                        fontSize: '13px',
+                        fontWeight: 600
+                      }}
+                    >
+                      {company.name}
+                    </span>
+                  ))
+                ) : (
+                  <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
+                    {language === 'EN' ? 'No companies linked' : 'No hay empresas vinculadas'}
                   </span>
-                ))}
+                )}
               </div>
             </div>
           </div>
@@ -253,7 +363,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language, onNa
                   {language === 'EN' ? 'CURRENT PLAN' : 'PLAN ACTUAL'}
                 </label>
                 <div style={{ padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '14px', fontWeight: 600 }}>
-                  {demoSubscription.plan}
+                  {loading ? '-' : (user?.subscription_tier || '-')}
                 </div>
               </div>
               <div>
@@ -261,7 +371,11 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language, onNa
                   {language === 'EN' ? 'NEXT BILLING DATE' : 'PRÓXIMA FECHA DE FACTURACIÓN'}
                 </label>
                 <div style={{ padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '14px' }}>
-                  {demoSubscription.nextBilling}
+                  {loading ? '-' : (() => {
+                    // Show trial end date if exists, otherwise subscription end date
+                    const dateToShow = user?.trial_ends_at || user?.subscription_ends_at;
+                    return dateToShow ? new Date(dateToShow).toLocaleDateString() : '-';
+                  })()}
                 </div>
               </div>
               <div>
@@ -269,7 +383,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language, onNa
                   {language === 'EN' ? 'SETUP FEE' : 'TARIFA DE CONFIGURACIÓN'}
                 </label>
                 <div style={{ padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '14px' }}>
-                  {demoSubscription.setupFee}
+                  -
                 </div>
               </div>
               <div>
@@ -277,15 +391,7 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language, onNa
                   {language === 'EN' ? 'CHANNELS' : 'CANALES'}
                 </label>
                 <div style={{ padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '14px' }}>
-                  {demoSubscription.channels}
-                </div>
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                  {language === 'EN' ? 'FEATURES' : 'CARACTERÍSTICAS'}
-                </label>
-                <div style={{ padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '14px' }}>
-                  {demoSubscription.features}
+                  {loading ? '-' : channels.length}
                 </div>
               </div>
             </div>
@@ -296,82 +402,41 @@ export const ProfileSettings: React.FC<ProfileSettingsProps> = ({ language, onNa
               {language === 'EN' ? 'Connected Channels' : 'Canales Conectados'}
             </h3>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
-              {connectedChannels.map((channel, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '12px 16px',
-                    background: 'var(--bg-secondary)',
-                    border: `1px solid ${channel.status === 'active' ? 'var(--success-green)' : 'var(--glass-border)'}`,
-                    borderRadius: '8px',
-                    minWidth: '140px'
-                  }}
-                >
+              {loading ? (
+                <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>-</span>
+              ) : channels.length > 0 ? (
+                channels.map((channel: any, idx: number) => (
                   <div
+                    key={idx}
                     style={{
-                      width: '10px',
-                      height: '10px',
-                      borderRadius: '50%',
-                      background: channel.status === 'active' ? 'var(--success-green)' : 'var(--text-muted)'
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '12px 16px',
+                      background: 'var(--bg-secondary)',
+                      border: `1px solid ${channel.status === 'active' ? 'var(--success-green)' : 'var(--glass-border)'}`,
+                      borderRadius: '8px',
+                      minWidth: '140px'
                     }}
-                  />
-                  <span style={{ color: 'var(--text-primary)', fontSize: '14px', fontWeight: 600 }}>
-                    {channel.name}
-                  </span>
+                  >
+                    <div
+                      style={{
+                        width: '10px',
+                        height: '10px',
+                        borderRadius: '50%',
+                        background: channel.status === 'active' ? 'var(--success-green)' : 'var(--text-muted)'
+                      }}
+                    />
+                    <span style={{ color: 'var(--text-primary)', fontSize: '14px', fontWeight: 600 }}>
+                      {channel.name}
+                    </span>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="glass-card" style={{ padding: '24px', borderRadius: '16px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
-              {language === 'EN' ? 'Recent Logins (Read-only)' : 'Inicios de Sesión Recientes (Solo lectura)'}
-            </h3>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                    <th style={{ padding: '12px 8px', textAlign: 'left', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                      {language === 'EN' ? 'DATE' : 'FECHA'}
-                    </th>
-                    <th style={{ padding: '12px 8px', textAlign: 'left', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                      {language === 'EN' ? 'IP ADDRESS' : 'DIRECCIÓN IP'}
-                    </th>
-                    <th style={{ padding: '12px 8px', textAlign: 'left', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                      {language === 'EN' ? 'DEVICE' : 'DISPOSITIVO'}
-                    </th>
-                    <th style={{ padding: '12px 8px', textAlign: 'left', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                      {language === 'EN' ? 'STATUS' : 'ESTADO'}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentLogins.map((login, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                      <td style={{ padding: '12px 8px', color: 'var(--text-primary)', fontSize: '13px' }}>{login.date}</td>
-                      <td style={{ padding: '12px 8px', color: 'var(--text-secondary)', fontSize: '13px' }}>{login.ip}</td>
-                      <td style={{ padding: '12px 8px', color: 'var(--text-secondary)', fontSize: '13px' }}>{login.device}</td>
-                      <td style={{ padding: '12px 8px' }}>
-                        <span
-                          style={{
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            background: login.status === 'Success' ? 'rgba(46, 213, 115, 0.15)' : 'rgba(255, 71, 87, 0.15)',
-                            color: login.status === 'Success' ? 'var(--success-green)' : 'var(--danger-red)'
-                          }}
-                        >
-                          {login.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              ))
+              ) : (
+                <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
+                  {language === 'EN' ? 'No channels connected' : 'No hay canales conectados'}
+                </span>
+              )}
             </div>
           </div>
         </div>

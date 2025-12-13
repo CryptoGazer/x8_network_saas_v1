@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, Wallet, CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../utils/api';
 
@@ -30,11 +30,12 @@ interface SpecialOfferConfig {
 
 export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ language, onNavigate }) => {
   const { user } = useAuth();
-  const [showTopUpModal, setShowTopUpModal] = useState(false);
   const [showManageSubscriptionModal, setShowManageSubscriptionModal] = useState(false);
   const [showActivateModal, setShowActivateModal] = useState(false);
   const [showSpecialOfferModal, setShowSpecialOfferModal] = useState(false);
   const [isAdmin] = useState(true);
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [specialOffer, setSpecialOffer] = useState<SpecialOfferConfig>({
     enabled: false,
@@ -54,6 +55,20 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
         console.error('Failed to load special offer:', e);
       }
     }
+
+    // Fetch companies data
+    const fetchCompanies = async () => {
+      try {
+        const response = await apiClient.getCompanies();
+        setCompanies(response);
+      } catch (error) {
+        console.error('Failed to fetch companies:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCompanies();
   }, []);
 
   const billingHistory: BillingHistoryRow[] = [];
@@ -132,41 +147,24 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
             <div>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
-                {language === 'EN' ? 'Wallet Balance' : 'Saldo de Cartera'}
-              </div>
-              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--brand-cyan)' }}>€0.00</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                 {language === 'EN' ? 'Active Projects' : 'Proyectos Activos'}
               </div>
-              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--success-green)' }}>0</div>
+              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--success-green)' }}>
+                {loading ? '-' : companies.length}
+              </div>
             </div>
             <div>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                 {language === 'EN' ? 'Next Billing' : 'Próxima Facturación'}
               </div>
-              <div style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)' }}>-</div>
+              <div style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                {(() => {
+                  // Show trial end date if exists, otherwise subscription end date
+                  const dateToShow = user?.trial_ends_at || user?.subscription_ends_at;
+                  return dateToShow ? new Date(dateToShow).toLocaleDateString() : '-';
+                })()}
+              </div>
             </div>
-          </div>
-          <div style={{ marginTop: '16px' }}>
-            <button
-              onClick={() => setShowTopUpModal(true)}
-              style={{
-                padding: '10px 20px',
-                background: 'linear-gradient(135deg, var(--brand-cyan), var(--brand-teal))',
-                border: 'none',
-                borderRadius: '8px',
-                color: '#FFFFFF',
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontSize: '14px',
-                transition: 'all var(--transition-fast)'
-              }}
-            >
-              <Wallet size={16} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'middle' }} />
-              {language === 'EN' ? 'Top Up Wallet' : 'Recargar Cartera'}
-            </button>
           </div>
         </div>
 
@@ -186,7 +184,9 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                 {language === 'EN' ? 'Company Name' : 'Nombre de Empresa'}
               </div>
-              <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>-</div>
+              <div style={{ fontSize: '14px', color: 'var(--text-primary)' }}>
+                {loading ? '-' : (companies.length > 0 ? companies.map(c => c.name).join(', ') : '-')}
+              </div>
             </div>
           </div>
         </div>
@@ -508,84 +508,6 @@ export const BillingSubscriptions: React.FC<BillingSubscriptionsProps> = ({ lang
           )}
         </div>
       </div>
-
-      {/* Top Up Modal */}
-      {showTopUpModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.7)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }} onClick={() => setShowTopUpModal(false)}>
-          <div className="glass-card" style={{ padding: '32px', maxWidth: '450px', width: '90%', borderRadius: '16px' }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '20px' }}>
-              {language === 'EN' ? 'Top Up Wallet' : 'Recargar Cartera'}
-            </h3>
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
-                {language === 'EN' ? 'Amount' : 'Monto'}
-              </label>
-              <input
-                type="number"
-                placeholder={language === 'EN' ? 'Enter amount in €' : 'Ingrese monto en €'}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: '8px',
-                  color: 'var(--text-primary)',
-                  fontSize: '14px'
-                }}
-              />
-            </div>
-            <div style={{ marginBottom: '20px', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px', textAlign: 'center', color: 'var(--text-muted)' }}>
-              {language === 'EN' ? 'Payment method setup required' : 'Configuración de método de pago requerida'}
-            </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={() => setShowTopUpModal(false)}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  background: 'transparent',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: '8px',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 500
-                }}
-              >
-                {language === 'EN' ? 'Cancel' : 'Cancelar'}
-              </button>
-              <button
-                onClick={() => setShowTopUpModal(false)}
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  background: 'linear-gradient(135deg, var(--brand-cyan), var(--brand-teal))',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#FFFFFF',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontSize: '14px'
-                }}
-              >
-                {language === 'EN' ? 'Confirm' : 'Confirmar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Manage Subscription Modal */}
       {showManageSubscriptionModal && (

@@ -21,53 +21,56 @@ async def upload_media(
     Files are stored in user-specific folders: users/{user_id}/product or users/{user_id}/service
     """
     if not cloudinary_service.is_configured():
-        raise HTTPException(
-            status_code=500,
-            detail="Cloudinary is not configured. Please add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to .env"
-        )
+        raise HTTPException(500, "Cloudinary is not configured")
 
-    # Validate KB type
-    if kb_type not in ["Product", "Service"]:
-        raise HTTPException(status_code=400, detail="kb_type must be 'Product' or 'Service'")
-
-    # Validate files
     if not files:
-        raise HTTPException(status_code=400, detail="No files provided")
+        raise HTTPException(400, "No files provided")
 
-    try:
-        # Prepare files for upload
-        files_data = []
-        for file in files:
-            content = await file.read()
-            files_data.append({
-                "filename": file.filename,
-                "content": content
-            })
+    # Проверяем типы в запросе
+    video_files = [f for f in files if f.content_type.startswith("video/")]
+    image_files = [f for f in files if f.content_type.startswith("image/")]
 
-        # Upload files
-        result = await cloudinary_service.upload_multiple_files(
-            files=files_data,
+    if video_files and image_files:
+        raise HTTPException(400, "Cannot upload images and video in one request")
+
+    if len(video_files) > 1:
+        raise HTTPException(400, "Only one video file can be uploaded at a time")
+
+    # Глобальное ограничение «одно видео на папку»
+    if video_files:
+        media = await cloudinary_service.get_user_media(
             user_id=current_user.id,
-            kb_type=kb_type
+            kb_type=kb_type,
+            max_results=50,
         )
+        existing_videos = [
+            r for r in media.get("resources", [])
+            if r.get("resource_type") == "video"
+        ]
+        if existing_videos:
+            raise HTTPException(
+                400,
+                "This knowledge base already has a video. "
+                "Delete the existing one before uploading a new video.",
+            )
 
-        return {
-            "success": result["success"],
-            "message": f"Uploaded {result['uploaded']} files, {result['failed']} failed",
-            "uploaded": result["uploaded"],
-            "failed": result["failed"],
-            "results": result["results"],
-            "errors": result["errors"]
-        }
+    # Читаем файлы и передаём в сервис
+    files_payload = []
+    for f in files:
+        content = await f.read()
+        files_payload.append({"filename": f.filename, "content": content})
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to upload files: {str(e)}")
+    result = await cloudinary_service.upload_multiple_files(
+        files=files_payload,
+        user_id=current_user.id,
+        kb_type=kb_type,
+    )
+    return result
 
 
 @router.get("/media")
 async def get_user_media(
     kb_type: Optional[str] = None,
-    max_results: int = 100,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -75,29 +78,47 @@ async def get_user_media(
     Get list of media files for the current user.
     Optionally filter by kb_type (Product or Service).
     """
-    if not cloudinary_service.is_configured():
-        raise HTTPException(status_code=500, detail="Cloudinary is not configured")
+    media = await cloudinary_service.get_user_media(
+        user_id=current_user.id,
+        kb_type=kb_type,
+        max_results=100,
+    )
 
-    # Validate KB type if provided
-    if kb_type and kb_type not in ["Product", "Service"]:
-        raise HTTPException(status_code=400, detail="kb_type must be 'Product' or 'Service'")
-
-    try:
-        result = await cloudinary_service.get_user_media(
-            user_id=current_user.id,
-            kb_type=kb_type,
-            max_results=max_results
-        )
-
-        return {
-            "success": True,
-            "total": result["total"],
-            "kb_type": kb_type,
-            "resources": result["resources"]
+    resources = media.get("resources", [])
+    images = [
+        {
+            "public_id": r.get("public_id"),
+            "url": r.get("secure_url") or r.get("url"),
+            "resource_type": r.get("resource_type"),
         }
+        for r in resources
+        if r.get("resource_type") == "image"
+    ]
+    videos = [
+        {
+            "public_id": r.get("public_id"),
+            "url": r.get("secure_url") or r.get("url"),
+            "resource_type": r.get("resource_type"),
+        }
+        for r in resources
+        if r.get("resource_type") == "video"
+    ]
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve media: {str(e)}")
+    return {
+        "success": True,
+        "images": images,
+        "videos": videos,
+    }
+
+
+@router.get("/images")
+async def list_images(kb_type: str, current_user: User = Depends(get_current_user)):
+    media = await cloudinary_service.get_user_media(current_user.id, kb_type)
+    return [
+        r.get("secure_url") or r.get("url")
+        for r in media.get("resources", [])
+        if r.get("resource_type") == "image"
+    ]
 
 
 @router.delete("/media/{public_id:path}")

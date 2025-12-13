@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Upload, Download, Image as ImageIcon, Play, Database, X, AlertCircle } from 'lucide-react';
 
 interface KnowledgeBaseProps {
@@ -86,6 +86,11 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
   const [serviceRows, setServiceRows] = useState<ServiceRow[]>([]);
   const [registry, setRegistry] = useState<KBRegistryEntry[]>([]);
   const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
+  const [bulkFiles, setBulkFiles] = useState<File[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [mediaError, setMediaError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isLoadingRegistry, setIsLoadingRegistry] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
@@ -513,15 +518,129 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
   };
 
   const handleBulkMediaUpload = () => {
+    // wipe the previous choice
+    setBulkFiles([]);
+    setMediaError(null);
     setShowBulkUploadModal(true);
   };
 
-  const simulateCloudinaryUpload = () => {
-    alert(language === 'EN'
-      ? 'Cloudinary bulk upload simulated. In production, files would be uploaded and public URLs returned.'
-      : 'Carga masiva a Cloudinary simulada. En producción, los archivos se subirían y se devolverían URLs públicas.');
-    setShowBulkUploadModal(false);
+  const handleMediaFilesSelected = (files: File[]) => {
+    if (!files.length) return;
+
+    const images = files.filter(f => f.type.startsWith('image/'));
+    const videos = files.filter(f => f.type.startsWith('video/'));
+
+    // уже выбранные видео + новые
+    const alreadyHasVideo = bulkFiles.some(f => f.type.startsWith('video/'));
+    if (videos.length + (alreadyHasVideo ? 1 : 0) > 1) {
+      setMediaError(
+        language === 'EN'
+          ? 'You can upload only one video for this folder.'
+          : 'Solo se permite un vídeo por carpeta.'
+      );
+      return;
+    }
+
+    setBulkFiles(prev => [...prev, ...images, ...videos]);
+    setMediaError(null);
   };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files || []);
+    handleMediaFilesSelected(files);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleBrowseClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    handleMediaFilesSelected(files);
+    // чтобы можно было выбрать тот же файл ещё раз
+    e.target.value = '';
+  };
+
+  const uploadBulkMedia = async () => {
+    if (!selectedCompany) {
+      alert(language === 'EN'
+        ? 'Please select a company first'
+        : 'Por favor selecciona una empresa primero'
+      );
+      return;
+    }
+
+    if (bulkFiles.length === 0) {
+      alert(language === 'EN'
+        ? 'Please add at least one file'
+        : 'Por favor añade al menos un archivo'
+      );
+      return;
+    }
+
+    try {
+      setIsUploadingMedia(true);
+      const token = localStorage.getItem('access_token');
+      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+
+      const formData = new FormData();
+      bulkFiles.forEach(f => formData.append('files', f));
+      formData.append('kb_type', kbType);           // "Product" | "Service"
+      formData.append('company_name', selectedCompany);
+
+      const res = await fetch(`${API_URL}/api/v1/knowledge-base/media-upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.detail || 'Upload failed');
+      }
+
+      // здесь result.items = [{ url, resource_type, public_id, filename }, ...]
+      console.log('Uploaded media:', result);
+
+      alert(
+        language === 'EN'
+          ? `Uploaded ${result.items.length} file(s) to Cloudinary.`
+          : `Se han subido ${result.items.length} archivo(s) a Cloudinary.`
+      );
+
+      setShowBulkUploadModal(false);
+      setBulkFiles([]);
+    } catch (err: any) {
+      console.error(err);
+      setMediaError(
+        language === 'EN'
+          ? `Upload failed: ${err.message}`
+          : `Error al subir: ${err.message}`
+      );
+    } finally {
+      setIsUploadingMedia(false);
+    }
+  };
+
+  
 
   const updateProductCell = async (index: number, field: keyof ProductRow, value: any) => {
     if (!selectedCompany) return;
@@ -1150,41 +1269,136 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
 )}
 
       {showBulkUploadModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.7)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }} onClick={() => setShowBulkUploadModal(false)}>
-          <div className="glass-card" style={{ padding: '32px', maxWidth: '500px', width: '90%', borderRadius: '16px' }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px' }}>
-              {language === 'EN' ? 'Bulk Media Upload (Cloudinary)' : 'Carga Masiva de Medios (Cloudinary)'}
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+          onClick={() => setShowBulkUploadModal(false)}
+        >
+          <div
+            className="glass-card"
+            style={{ padding: '32px', maxWidth: '500px', width: '90%', borderRadius: '16px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3
+              style={{
+                fontSize: '20px',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                marginBottom: '16px'
+              }}
+            >
+              {language === 'EN'
+                ? 'Bulk Media Upload (Cloudinary)'
+                : 'Carga Masiva de Medios (Cloudinary)'}
             </h3>
-            <div style={{
-              padding: '60px 20px',
-              border: '2px dashed var(--glass-border)',
-              borderRadius: '8px',
-              textAlign: 'center',
-              marginBottom: '24px'
-            }}>
-              <ImageIcon size={40} style={{ color: 'var(--brand-cyan)', marginBottom: '12px' }} />
-              <p style={{ color: 'var(--text-primary)', fontSize: '14px', marginBottom: '8px' }}>
-                {language === 'EN' ? 'Drag and drop images/videos or click to browse' : 'Arrastra imágenes/videos o haz clic para buscar'}
+
+            <div
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onClick={handleBrowseClick}
+              style={{
+                padding: '60px 20px',
+                border: '2px dashed var(--glass-border)',
+                borderRadius: '8px',
+                textAlign: 'center',
+                marginBottom: '16px',
+                cursor: 'pointer',
+                background: isDragging
+                  ? 'rgba(0, 212, 255, 0.06)'
+                  : 'transparent'
+              }}
+            >
+              <ImageIcon
+                size={40}
+                style={{ color: 'var(--brand-cyan)', marginBottom: '12px' }}
+              />
+              <p
+                style={{
+                  color: 'var(--text-primary)',
+                  fontSize: '14px',
+                  marginBottom: '8px'
+                }}
+              >
+                {language === 'EN'
+                  ? 'Drag and drop images/videos or click to browse'
+                  : 'Arrastra imágenes/videos o haz clic para buscar'}
               </p>
               <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-                {language === 'EN' ? 'Files will be uploaded to Cloudinary and URLs returned' : 'Los archivos se subirán a Cloudinary y se devolverán URLs'}
+                {language === 'EN'
+                  ? 'You can upload many images but only one video per folder.'
+                  : 'Puedes subir muchas imágenes pero solo un vídeo por carpeta.'}
               </p>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,video/*"
+                style={{ display: 'none' }}
+                onChange={handleFileInputChange}
+              />
+
+              {bulkFiles.length > 0 && (
+                <div style={{ marginTop: '16px', textAlign: 'left' }}>
+                  <p
+                    style={{
+                      fontSize: '12px',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '4px'
+                    }}
+                  >
+                    {language === 'EN'
+                      ? 'Files selected:'
+                      : 'Archivos seleccionados:'}
+                  </p>
+                  <ul
+                    style={{
+                      maxHeight: '120px',
+                      overflowY: 'auto',
+                      fontSize: '11px',
+                      paddingLeft: '18px',
+                      color: 'var(--text-secondary)'
+                    }}
+                  >
+                    {bulkFiles.map(f => (
+                      <li key={f.name + f.lastModified}>{f.name}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {mediaError && (
+                <p
+                  style={{
+                    marginTop: '8px',
+                    fontSize: '12px',
+                    color: 'var(--danger-red)'
+                  }}
+                >
+                  {mediaError}
+                </p>
+              )}
             </div>
+
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
-                onClick={() => setShowBulkUploadModal(false)}
+                onClick={() => {
+                  setShowBulkUploadModal(false);
+                  setBulkFiles([]);
+                  setMediaError(null);
+                }}
                 style={{
                   flex: 1,
                   padding: '12px',
@@ -1200,20 +1414,28 @@ export const KnowledgeBase: React.FC<KnowledgeBaseProps> = ({ language, onNaviga
                 {language === 'EN' ? 'Cancel' : 'Cancelar'}
               </button>
               <button
-                onClick={simulateCloudinaryUpload}
+                onClick={uploadBulkMedia}
+                disabled={isUploadingMedia || bulkFiles.length === 0}
                 style={{
                   flex: 1,
                   padding: '12px',
                   background: 'linear-gradient(135deg, var(--brand-cyan), var(--brand-teal))',
+                  opacity: isUploadingMedia || bulkFiles.length === 0 ? 0.6 : 1,
                   border: 'none',
                   borderRadius: '8px',
                   color: '#FFFFFF',
                   fontWeight: 600,
-                  cursor: 'pointer',
+                  cursor: isUploadingMedia || bulkFiles.length === 0 ? 'not-allowed' : 'pointer',
                   fontSize: '14px'
                 }}
               >
-                {language === 'EN' ? 'Upload to Cloudinary' : 'Subir a Cloudinary'}
+                {isUploadingMedia
+                  ? language === 'EN'
+                    ? 'Uploading...'
+                    : 'Subiendo...'
+                  : language === 'EN'
+                    ? 'Upload to Cloudinary'
+                    : 'Subir a Cloudinary'}
               </button>
             </div>
           </div>

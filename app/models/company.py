@@ -19,7 +19,7 @@ class Company(Base):
     name = Column(String, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
-    shop_type = Column(String, nullable=False, default="service")  # Can be "product", "service", or any custom type
+    shop_type = Column(String, nullable=False, default="service")  # Can be any custom type
     status = Column(SQLEnum(CompanyStatus), default=CompanyStatus.ACTIVE)
 
     total_messages = Column(Integer, default=0)

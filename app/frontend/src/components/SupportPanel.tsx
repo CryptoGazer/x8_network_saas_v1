@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, MessageCircle, Send, Mic, Smile, Paperclip, Calendar, Clock, Check, User, Bot } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Send, Smile, Calendar, Clock, Check, User, Bot } from 'lucide-react';
 
 interface SupportPanelProps {
   language: string;
@@ -356,21 +356,6 @@ export const SupportPanel: React.FC<SupportPanelProps> = ({ language, onNavigate
             </div>
 
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <button
-                style={{
-                  padding: '10px',
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: '8px',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <Mic size={20} />
-              </button>
               <input
                 type="text"
                 value={chatInput}
@@ -526,36 +511,6 @@ export const SupportPanel: React.FC<SupportPanelProps> = ({ language, onNavigate
             </div>
 
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <button
-                style={{
-                  padding: '10px',
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: '8px',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <Paperclip size={20} />
-              </button>
-              <button
-                style={{
-                  padding: '10px',
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: '8px',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <Mic size={20} />
-              </button>
               <input
                 type="text"
                 value={dmInput}

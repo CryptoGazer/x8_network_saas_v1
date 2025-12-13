@@ -7,6 +7,8 @@ interface User {
   full_name: string;
   role: string;
   subscription_tier?: string;
+  subscription_ends_at?: string;
+  trial_ends_at?: string;
 }
 
 interface AuthContextType {
@@ -22,6 +24,7 @@ interface AuthContextType {
   requestMagicLink: (email: string) => Promise<boolean>;
   verifyMagicLink: (token: string) => Promise<boolean>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -153,8 +156,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const refreshUser = async (): Promise<void> => {
+    try {
+      const userData = await apiClient.getCurrentUser();
+      setUser(userData);
+    } catch (error) {
+      console.error('Failed to refresh user data:', error);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, loginWithOAuth, requestPasswordReset, verifyResetCode, resetPassword, requestMagicLink, verifyMagicLink, changePassword }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, loginWithOAuth, requestPasswordReset, verifyResetCode, resetPassword, requestMagicLink, verifyMagicLink, changePassword, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

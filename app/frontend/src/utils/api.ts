@@ -329,6 +329,40 @@ class ApiClient {
 
     return await response.json();
   }
+
+  async getCompanies(): Promise<any[]> {
+    const response = await fetch(`${this.baseUrl}/api/v1/companies`, {
+      method: 'GET',
+      headers: {
+        ...this.getAuthHeader(),
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to fetch companies');
+    }
+
+    return await response.json();
+  }
+
+  async updateProfile(data: { full_name?: string; email?: string }): Promise<any> {
+    const response = await fetch(`${this.baseUrl}/api/v1/users/profile`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeader(),
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to update profile');
+    }
+
+    return await response.json();
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
